@@ -1,0 +1,634 @@
+[
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Algèbre — matrices, déterminants et systèmes linéaires",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Economie et gestion : systèmes linéaires n×p avec n,p≤3 ; matrices, opérations, déterminants et inverses d'ordre 2 ou 3 ; théorie des graphes et graphes probabilistes ; nombres complexes avec opérations, conjugué, module, équations complexes. La géométrie dans l'espace, les coniques et les similitudes/isométries planes ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : matrices n×p avec n,p≤3, opérations matricielles, déterminant/inverse d'ordre 2 ou 3, résolution de systèmes linéaires 2×2 ou 3×3.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — fonctions réciproques et bijection",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : continuité, monotonie stricte, théorème de la bijection, fonction réciproque, dérivée de la réciproque et symétrie des courbes.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — fonctions, limites, continuité, dérivation et représentation graphique",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : limites, continuité, dérivation, variations, extrema, asymptotes/branches, étude et représentation graphique de fonctions du programme.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — intégrales, primitives, aires et volumes",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : primitives, calcul d'intégrales, intégration par parties, propriétés de l'intégrale, aires planes ; volumes seulement pour les sections où les volumes de révolution sont explicitement listés.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Economie et gestion : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, point d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule de la moyenne et aires planes ; suites réelles : variations, bornes, convergence, suites arithmétiques, géométriques et homographiques. Pas d'équations différentielles dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Graphes — théorie des graphes et graphes probabilistes",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Economie et gestion : systèmes linéaires n×p avec n,p≤3 ; matrices, opérations, déterminants et inverses d'ordre 2 ou 3 ; théorie des graphes et graphes probabilistes ; nombres complexes avec opérations, conjugué, module, équations complexes. La géométrie dans l'espace, les coniques et les similitudes/isométries planes ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : graphes, sommets/arêtes, degré, chaîne eulérienne, nombre chromatique, matrice associée, plus courte chaîne/Dijkstra, graphe probabiliste et matrice de transition.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Géométrie — nombres complexes",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Economie et gestion : systèmes linéaires n×p avec n,p≤3 ; matrices, opérations, déterminants et inverses d'ordre 2 ou 3 ; théorie des graphes et graphes probabilistes ; nombres complexes avec opérations, conjugué, module, équations complexes. La géométrie dans l'espace, les coniques et les similitudes/isométries planes ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : calculs complexes, conjugué, module, argument, forme trigonométrique/exponentielle, équations complexes, interprétation géométrique dans le plan complexe.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Probabilités — conditionnement, probabilités totales et Bayes",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Economie et gestion : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : probabilité conditionnelle, formule des probabilités totales, formule de Bayes, arbre de probabilités, indépendance.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Probabilités — dénombrement et équiprobabilité",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Economie et gestion : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : dénombrement élémentaire/équiprobabilité, arbres de choix, épreuves successives si autorisées.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Probabilités — loi binomiale et schéma de Bernoulli",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Economie et gestion : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : schéma de Bernoulli, paramètres n et p, loi binomiale, espérance/variance/écart-type dans le cas binomial.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Probabilités — variables aléatoires, espérance et variance",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Economie et gestion : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : variable aléatoire discrète, loi de probabilité, espérance, variance, écart-type et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "economie-et-gestion",
+    "section_label": "Section Economie et gestion",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Economie et gestion : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Lettres : problèmes du second degré ; fonctions avec nombre dérivé, dérivation, sens de variation, extrema, représentations graphiques de fonctions polynômes du 1er, 2e, 3e degré et bicarrées, fonctions rationnelles de type (ax+b)/(cx+d), logarithme népérien, exponentielle de base e, fonctions ln(ax+b) et e^(ax+b) ; suites arithmétiques, géométriques et récurrentes de type affine ou homographique. Les intégrales, fonctions réciproques avancées et équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Lettres : problèmes du second degré ; fonctions avec nombre dérivé, dérivation, sens de variation, extrema, représentations graphiques de fonctions polynômes du 1er, 2e, 3e degré et bicarrées, fonctions rationnelles de type (ax+b)/(cx+d), logarithme népérien, exponentielle de base e, fonctions ln(ax+b) et e^(ax+b) ; suites arithmétiques, géométriques et récurrentes de type affine ou homographique. Les intégrales, fonctions réciproques avancées et équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Analyse — fonctions, limites, continuité, dérivation et représentation graphique",
+    "official_program_scope": "Analyse officielle de 4e année — Section Lettres : problèmes du second degré ; fonctions avec nombre dérivé, dérivation, sens de variation, extrema, représentations graphiques de fonctions polynômes du 1er, 2e, 3e degré et bicarrées, fonctions rationnelles de type (ax+b)/(cx+d), logarithme népérien, exponentielle de base e, fonctions ln(ax+b) et e^(ax+b) ; suites arithmétiques, géométriques et récurrentes de type affine ou homographique. Les intégrales, fonctions réciproques avancées et équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : limites, continuité, dérivation, variations, extrema, asymptotes/branches, étude et représentation graphique de fonctions du programme.",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Lettres : problèmes du second degré ; fonctions avec nombre dérivé, dérivation, sens de variation, extrema, représentations graphiques de fonctions polynômes du 1er, 2e, 3e degré et bicarrées, fonctions rationnelles de type (ax+b)/(cx+d), logarithme népérien, exponentielle de base e, fonctions ln(ax+b) et e^(ax+b) ; suites arithmétiques, géométriques et récurrentes de type affine ou homographique. Les intégrales, fonctions réciproques avancées et équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Probabilités — dénombrement et équiprobabilité",
+    "official_program_scope": "Statistiques-Dénombrement-Probabilités officielles — Section Lettres : séries statistiques à un caractère, distribution normale, séries à deux caractères, tableau à deux entrées, distributions marginales, nuage de points, point moyen, droite de régression, covariance, coefficient de corrélation ; probabilité, loi binomiale et loi exponentielle. Les probabilités conditionnelles/Bayes ne sont pas listées explicitement dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : dénombrement élémentaire/équiprobabilité, arbres de choix, épreuves successives si autorisées.",
+    "warnings": []
+  },
+  {
+    "section": "lettres",
+    "section_label": "Section Lettres",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Dénombrement-Probabilités officielles — Section Lettres : séries statistiques à un caractère, distribution normale, séries à deux caractères, tableau à deux entrées, distributions marginales, nuage de points, point moyen, droite de régression, covariance, coefficient de corrélation ; probabilité, loi binomiale et loi exponentielle. Les probabilités conditionnelles/Bayes ne sont pas listées explicitement dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — fonctions réciproques et bijection",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : continuité, monotonie stricte, théorème de la bijection, fonction réciproque, dérivée de la réciproque et symétrie des courbes.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — intégrales, primitives, aires et volumes",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : primitives, calcul d'intégrales, intégration par parties, propriétés de l'intégrale, aires planes ; volumes seulement pour les sections où les volumes de révolution sont explicitement listés.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — suites définies par une intégrale",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : suites avec terme défini par une intégrale, encadrements, limites, intégration par parties ; accepter uniquement si la section autorise explicitement ou implicitement les suites et les intégrales à ce niveau.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Analyse — équations différentielles",
+    "official_program_scope": "Analyse officielle de 4e année — Section Mathématiques : fonctions numériques d'une variable réelle ; limites, continuité, théorème des valeurs intermédiaires, bijection ; dérivation, dérivée seconde, point d'inflexion, dérivée des fonctions réciproques, théorèmes des accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme népérien, exponentielle, puissances x^r et a^x ; intégrales avec linéarité, Chasles, positivité, comparaison, intégration par parties, formule/inégalité de la moyenne ; calcul d'aires et de volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles : variations, bornes, convergence, comparaison, suites adjacentes, suites récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : équations différentielles y'=ay+b et/ou y''+a^2y=0.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Arithmétique — congruences, divisibilité, Bézout et équations diophantiennes",
+    "official_program_scope": "Arithmétique officielle — Section Mathématiques : congruence dans Z, théorème de Bézout, équations du type ax+by=c dans Z ; utiliser divisibilité, division euclidienne, PGCD/PPCM, congruences, nombres premiers entre eux via Bézout et résoudre des équations diophantiennes.",
+    "topic_focus": "Vérifier surtout : divisibilité, congruences modulo n, PGCD/PPCM, nombres premiers entre eux, théorème de Bézout, équations diophantiennes ax+by=c.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Géométrie — coniques",
+    "official_program_scope": "Géométrie officielle — Section Mathématiques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes, écriture complexe des translations/homothéties/rotations ; isométries planes, déplacements/antidéplacements, décomposition en symétries ; similitudes planes, classification, éléments caractéristiques, forme réduite, composition, expression complexe ; coniques ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères, translations et homothéties de l'espace.",
+    "topic_focus": "Vérifier surtout : équations cartésiennes de coniques, reconnaissance, foyer/directrice/excentricité.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Géométrie — géométrie dans l’espace",
+    "official_program_scope": "Géométrie officielle — Section Mathématiques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes, écriture complexe des translations/homothéties/rotations ; isométries planes, déplacements/antidéplacements, décomposition en symétries ; similitudes planes, classification, éléments caractéristiques, forme réduite, composition, expression complexe ; coniques ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères, translations et homothéties de l'espace.",
+    "topic_focus": "Vérifier surtout : vecteurs de l'espace, produit scalaire/vectoriel si autorisé, droites, plans, sphères, intersections, distances, volumes selon section.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Géométrie — nombres complexes",
+    "official_program_scope": "Géométrie officielle — Section Mathématiques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes, écriture complexe des translations/homothéties/rotations ; isométries planes, déplacements/antidéplacements, décomposition en symétries ; similitudes planes, classification, éléments caractéristiques, forme réduite, composition, expression complexe ; coniques ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères, translations et homothéties de l'espace.",
+    "topic_focus": "Vérifier surtout : calculs complexes, conjugué, module, argument, forme trigonométrique/exponentielle, équations complexes, interprétation géométrique dans le plan complexe.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Géométrie — similitudes, isométries et transformations du plan",
+    "official_program_scope": "Géométrie officielle — Section Mathématiques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes, écriture complexe des translations/homothéties/rotations ; isométries planes, déplacements/antidéplacements, décomposition en symétries ; similitudes planes, classification, éléments caractéristiques, forme réduite, composition, expression complexe ; coniques ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères, translations et homothéties de l'espace.",
+    "topic_focus": "Vérifier surtout : transformations du plan, isométries, rotations, symétries, homothéties, similitudes, éléments caractéristiques et expression complexe.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Probabilités — conditionnement, probabilités totales et Bayes",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : probabilité conditionnelle, formule des probabilités totales, formule de Bayes, arbre de probabilités, indépendance.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Probabilités — loi binomiale et schéma de Bernoulli",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : schéma de Bernoulli, paramètres n et p, loi binomiale, espérance/variance/écart-type dans le cas binomial.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Probabilités — loi exponentielle",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : reconnaissance d'une loi exponentielle, fonction de répartition, calculs de probabilités et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Probabilités — variables aléatoires, espérance et variance",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : variable aléatoire discrète, loi de probabilité, espérance, variance, écart-type et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "mathematiques",
+    "section_label": "Section Mathématiques",
+    "topic": "Statistiques — séries à un caractère",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Mathématiques : séries statistiques à deux caractères, ajustements affines, moindres carrés, Mayer, droites de régression, corrélation, covariance, ajustements non affines ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, loi de probabilité, schéma de Bernoulli, loi binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à un caractère, paramètres de position et de dispersion.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — fonctions réciproques et bijection",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : continuité, monotonie stricte, théorème de la bijection, fonction réciproque, dérivée de la réciproque et symétrie des courbes.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — suites définies par une intégrale",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : suites avec terme défini par une intégrale, encadrements, limites, intégration par parties ; accepter uniquement si la section autorise explicitement ou implicitement les suites et les intégrales à ce niveau.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Analyse — équations différentielles",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences expérimentales : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, réciproques, accroissements finis ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances x^r et a^x ; intégrales, intégration par parties, moyenne/inégalité, aires et volumes de révolution ; fonctions définies par une intégrale ; équations différentielles y'=ay+b et y''+a^2y=0 ; suites réelles, convergence, suites adjacentes, récurrentes et suites définies par une intégrale.",
+    "topic_focus": "Vérifier surtout : équations différentielles y'=ay+b et/ou y''+a^2y=0.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Géométrie — géométrie dans l’espace",
+    "official_program_scope": "Géométrie officielle — Section Sciences expérimentales : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères et sections. Les similitudes/isométries planes ne sont pas listées comme contenu autonome dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : vecteurs de l'espace, produit scalaire/vectoriel si autorisé, droites, plans, sphères, intersections, distances, volumes selon section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Géométrie — nombres complexes",
+    "official_program_scope": "Géométrie officielle — Section Sciences expérimentales : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, droites, plans, sphères et sections. Les similitudes/isométries planes ne sont pas listées comme contenu autonome dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : calculs complexes, conjugué, module, argument, forme trigonométrique/exponentielle, équations complexes, interprétation géométrique dans le plan complexe.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Probabilités — conditionnement, probabilités totales et Bayes",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : probabilité conditionnelle, formule des probabilités totales, formule de Bayes, arbre de probabilités, indépendance.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Probabilités — dénombrement et équiprobabilité",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : dénombrement élémentaire/équiprobabilité, arbres de choix, épreuves successives si autorisées.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Probabilités — loi binomiale et schéma de Bernoulli",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : schéma de Bernoulli, paramètres n et p, loi binomiale, espérance/variance/écart-type dans le cas binomial.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Probabilités — loi exponentielle",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : reconnaissance d'une loi exponentielle, fonction de répartition, calculs de probabilités et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Probabilités — variables aléatoires, espérance et variance",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : variable aléatoire discrète, loi de probabilité, espérance, variance, écart-type et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-experimentales",
+    "section_label": "Section Sciences expérimentales",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences expérimentales : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Algèbre — matrices, déterminants et systèmes linéaires",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Sciences de l'informatique : nombres complexes avec opérations, conjugué, module, racine carrée, équations complexes ; systèmes linéaires et matrices ; géométrie dans l'espace avec vecteurs, droites, plans ; graphes. Les similitudes/isométries planes et coniques ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : matrices n×p avec n,p≤3, opérations matricielles, déterminant/inverse d'ordre 2 ou 3, résolution de systèmes linéaires 2×2 ou 3×3.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences de l'informatique : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, logarithme, exponentielle, a^x ; intégrales avec propriétés, intégration par parties et aires planes ; suites réelles : variations, bornes, convergence, comparaison et suites récurrentes. Les volumes de révolution et les équations différentielles ne sont pas listés dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences de l'informatique : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, logarithme, exponentielle, a^x ; intégrales avec propriétés, intégration par parties et aires planes ; suites réelles : variations, bornes, convergence, comparaison et suites récurrentes. Les volumes de révolution et les équations différentielles ne sont pas listés dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Analyse — fonctions réciproques et bijection",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences de l'informatique : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, logarithme, exponentielle, a^x ; intégrales avec propriétés, intégration par parties et aires planes ; suites réelles : variations, bornes, convergence, comparaison et suites récurrentes. Les volumes de révolution et les équations différentielles ne sont pas listés dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : continuité, monotonie stricte, théorème de la bijection, fonction réciproque, dérivée de la réciproque et symétrie des courbes.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Analyse — intégrales, primitives, aires et volumes",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences de l'informatique : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, logarithme, exponentielle, a^x ; intégrales avec propriétés, intégration par parties et aires planes ; suites réelles : variations, bornes, convergence, comparaison et suites récurrentes. Les volumes de révolution et les équations différentielles ne sont pas listés dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : primitives, calcul d'intégrales, intégration par parties, propriétés de l'intégrale, aires planes ; volumes seulement pour les sections où les volumes de révolution sont explicitement listés.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences de l'informatique : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, logarithme, exponentielle, a^x ; intégrales avec propriétés, intégration par parties et aires planes ; suites réelles : variations, bornes, convergence, comparaison et suites récurrentes. Les volumes de révolution et les équations différentielles ne sont pas listés dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Arithmétique — congruences, divisibilité, Bézout et équations diophantiennes",
+    "official_program_scope": "Arithmétique officielle — Section Sciences de l'informatique : congruence dans Z, théorème de Bézout, résolution sur des exemples d'équations ax+by=c ; utiliser divisibilité, division euclidienne, PGCD/PPCM, congruences et nombres premiers entre eux.",
+    "topic_focus": "Vérifier surtout : divisibilité, congruences modulo n, PGCD/PPCM, nombres premiers entre eux, théorème de Bézout, équations diophantiennes ax+by=c.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Géométrie — géométrie dans l’espace",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Sciences de l'informatique : nombres complexes avec opérations, conjugué, module, racine carrée, équations complexes ; systèmes linéaires et matrices ; géométrie dans l'espace avec vecteurs, droites, plans ; graphes. Les similitudes/isométries planes et coniques ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : vecteurs de l'espace, produit scalaire/vectoriel si autorisé, droites, plans, sphères, intersections, distances, volumes selon section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Géométrie — nombres complexes",
+    "official_program_scope": "Algèbre et géométrie officielle — Section Sciences de l'informatique : nombres complexes avec opérations, conjugué, module, racine carrée, équations complexes ; systèmes linéaires et matrices ; géométrie dans l'espace avec vecteurs, droites, plans ; graphes. Les similitudes/isométries planes et coniques ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : calculs complexes, conjugué, module, argument, forme trigonométrique/exponentielle, équations complexes, interprétation géométrique dans le plan complexe.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Probabilités — conditionnement, probabilités totales et Bayes",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences de l'informatique : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : probabilité conditionnelle, formule des probabilités totales, formule de Bayes, arbre de probabilités, indépendance.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Probabilités — dénombrement et équiprobabilité",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences de l'informatique : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : dénombrement élémentaire/équiprobabilité, arbres de choix, épreuves successives si autorisées.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Probabilités — variables aléatoires, espérance et variance",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences de l'informatique : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : variable aléatoire discrète, loi de probabilité, espérance, variance, écart-type et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-informatiques",
+    "section_label": "Section Sciences de l’informatique",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences de l'informatique : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — fonction exponentielle",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : propriétés de exp, limites usuelles, dérivée, variations, graphes, équations/inéquations avec e^x ou e^{u(x)}.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — fonction logarithme népérien",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : domaine de ln, limites usuelles, dérivée et variations, asymptotes, étude/graphique de ln ou ln(u(x)).",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — fonctions réciproques et bijection",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : continuité, monotonie stricte, théorème de la bijection, fonction réciproque, dérivée de la réciproque et symétrie des courbes.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — fonctions, limites, continuité, dérivation et représentation graphique",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : limites, continuité, dérivation, variations, extrema, asymptotes/branches, étude et représentation graphique de fonctions du programme.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — intégrales, primitives, aires et volumes",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : primitives, calcul d'intégrales, intégration par parties, propriétés de l'intégrale, aires planes ; volumes seulement pour les sections où les volumes de révolution sont explicitement listés.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Analyse — suites numériques",
+    "official_program_scope": "Analyse officielle de 4e année — Section Sciences techniques : fonctions numériques ; limites, continuité, TVI, bijection ; dérivation, dérivée seconde, points d'inflexion, fonctions réciproques ; primitives ; fonctions polynômes, rationnelles, trigonométriques, logarithme, exponentielle, puissances et a^x ; intégrales avec propriétés, intégration par parties, aires planes et volumes de révolution ; suites réelles, variations, bornes, convergence, comparaison et suites récurrentes. Les équations différentielles ne sont pas listées dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : variations, majoration/minoration, convergence, limites, suites arithmétiques/géométriques/récurrentes/homographiques selon la section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Géométrie — géométrie dans l’espace",
+    "official_program_scope": "Géométrie officielle — Section Sciences techniques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, produit mixte, droites, plans, sphères. Les similitudes/isométries planes ne sont pas listées comme contenu autonome dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : vecteurs de l'espace, produit scalaire/vectoriel si autorisé, droites, plans, sphères, intersections, distances, volumes selon section.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Géométrie — nombres complexes",
+    "official_program_scope": "Géométrie officielle — Section Sciences techniques : nombres complexes avec conjugué, module, argument, formes trigonométrique/exponentielle, Euler, linéarisation, racines n-ièmes, équations complexes ; géométrie dans l'espace avec vecteurs, produit scalaire, produit vectoriel, produit mixte, droites, plans, sphères. Les similitudes/isométries planes ne sont pas listées comme contenu autonome dans l'extrait de cette section.",
+    "topic_focus": "Vérifier surtout : calculs complexes, conjugué, module, argument, forme trigonométrique/exponentielle, équations complexes, interprétation géométrique dans le plan complexe.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Probabilités — conditionnement, probabilités totales et Bayes",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : probabilité conditionnelle, formule des probabilités totales, formule de Bayes, arbre de probabilités, indépendance.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Probabilités — dénombrement et équiprobabilité",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : dénombrement élémentaire/équiprobabilité, arbres de choix, épreuves successives si autorisées.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Probabilités — loi binomiale et schéma de Bernoulli",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : schéma de Bernoulli, paramètres n et p, loi binomiale, espérance/variance/écart-type dans le cas binomial.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Probabilités — loi exponentielle",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : reconnaissance d'une loi exponentielle, fonction de répartition, calculs de probabilités et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Probabilités — variables aléatoires, espérance et variance",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : variable aléatoire discrète, loi de probabilité, espérance, variance, écart-type et interprétation.",
+    "warnings": []
+  },
+  {
+    "section": "sciences-techniques",
+    "section_label": "Section Sciences techniques",
+    "topic": "Statistiques — séries à deux caractères, régression et corrélation",
+    "official_program_scope": "Statistiques-Probabilités officielles — Section Sciences techniques : séries statistiques à deux caractères, ajustements affines/non affines, régression, corrélation, covariance ; probabilités conditionnelles, probabilités totales, Bayes ; variables aléatoires, Bernoulli, binomiale ; espérance, variance, écart-type ; lois continues uniformes et exponentielles.",
+    "topic_focus": "Vérifier surtout : série statistique à deux caractères, nuage de points, point moyen, covariance, coefficient de corrélation, droite de régression, ajustement affine/non affine et interprétation.",
+    "warnings": []
+  }
+]

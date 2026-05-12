@@ -1,0 +1,1 @@
+"""MathTutorAI frontend package."""
