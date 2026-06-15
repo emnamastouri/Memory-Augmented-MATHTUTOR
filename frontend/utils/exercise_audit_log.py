@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import json
 from typing import Any
 
@@ -113,9 +114,10 @@ def _build_audit_record(
         "generation_attempt_number": _value(source, parent, "attempt_number")
         or _value(source, parent, "generation_attempt_number"),
         "generated_at": _value(source, parent, "generated_at"),
-        "user_email": user_email,
+        "user_email": _redact_email(user_email),
+        "user_hash": _hash_user_identifier(user_email),
         "user_role": user_role,
-        "user_display_name": user_display_name,
+        "user_display_name": _redact_display_name(user_display_name),
         "level": _value(source, parent, "level"),
         "section": _value(source, parent, "section"),
         "topic": _value(source, parent, "topic"),
@@ -123,9 +125,36 @@ def _build_audit_record(
         "difficulty": _value(source, parent, "difficulty"),
         "exercise_type": _value(source, parent, "exercise_type"),
         "title": _value(source, parent, "title"),
+        "context": _value(source, parent, "context"),
+        "questions": _ensure_list(_value(source, parent, "questions")),
         "tags": _ensure_list(_value(source, parent, "tags")),
         "generation_backend": _value(source, parent, "generation_backend"),
         "generation_warning": _value(source, parent, "generation_warning"),
+        "is_true_llm_generation": _value(source, parent, "is_true_llm_generation"),
+        "llm_json_parse_status": _value(source, parent, "llm_json_parse_status"),
+        "llm_json_extraction_method": _value(source, parent, "llm_json_extraction_method"),
+        "llm_json_parse_error": _value(source, parent, "llm_json_parse_error"),
+        "llm_raw_response_preview": _truncate_text(_value(source, parent, "llm_raw_response_preview"), 1000),
+        "llm_generation_attempts_count": _value(source, parent, "llm_generation_attempts_count"),
+        "openrouter_http_status": _value(source, parent, "openrouter_http_status"),
+        "openrouter_error_type": _value(source, parent, "openrouter_error_type"),
+        "openrouter_error_message": _truncate_text(_value(source, parent, "openrouter_error_message"), 1000),
+        "openrouter_response_format_mode": _value(source, parent, "openrouter_response_format_mode"),
+        "openrouter_model_used": _value(source, parent, "openrouter_model_used"),
+        "openrouter_request_id": _value(source, parent, "openrouter_request_id"),
+        "openrouter_provider": _value(source, parent, "openrouter_provider"),
+        "openrouter_usage": _value(source, parent, "openrouter_usage"),
+        "openrouter_call_attempts": _ensure_list(_value(source, parent, "openrouter_call_attempts")),
+        "prompt_char_count": _value(source, parent, "prompt_char_count"),
+        "prompt_token_estimate": _value(source, parent, "prompt_token_estimate"),
+        "number_of_memory_cases": _value(source, parent, "number_of_memory_cases"),
+        "fallback_used": _value(source, parent, "fallback_used"),
+        "fallback_reason": _value(source, parent, "fallback_reason"),
+        "display_source_category": _value(source, parent, "display_source_category"),
+        "retry_strategy": _value(source, parent, "retry_strategy"),
+        "failure_categories": _ensure_list(_value(source, parent, "failure_categories")),
+        "previous_errors_injected": _ensure_list(_value(source, parent, "previous_errors_injected")),
+        "demo_mode_used": _value(source, parent, "demo_mode_used"),
         "judge_status": _value(source, parent, "judge_status"),
         "judge_validation_flag": judge_validation_flag,
         "judge_model": _value(source, parent, "judge_model"),
@@ -155,11 +184,40 @@ def _build_audit_record(
         "symbolic_checks_passed": _value(source, parent, "symbolic_checks_passed"),
         "symbolic_checks_required": _value(source, parent, "symbolic_checks_required"),
         "corrected_fields_applied": _value(source, parent, "corrected_fields_applied"),
+        "student_facing_format_flag": _value(source, parent, "student_facing_format_flag"),
+        "student_facing_format_issues": _ensure_list(_value(source, parent, "student_facing_format_issues")),
+        "student_facing_format_after_repair": _value(source, parent, "student_facing_format_after_repair"),
+        "domain_validator_name": _value(source, parent, "domain_validator_name"),
+        "domain_router_key": _value(source, parent, "domain_router_key"),
+        "domain_router_reason": _value(source, parent, "domain_router_reason"),
+        "domain_validator_flag": _value(source, parent, "domain_validator_flag"),
+        "domain_validator_issues": _ensure_list(_value(source, parent, "domain_validator_issues")),
+        "question_coverage_flag": _value(source, parent, "question_coverage_flag"),
+        "question_coverage_issues": _ensure_list(_value(source, parent, "question_coverage_issues")),
+        "unanswered_question_indices": _ensure_list(_value(source, parent, "unanswered_question_indices")),
+        "latex_repair_applied": _value(source, parent, "latex_repair_applied"),
+        "latex_repair_issues_remaining": _ensure_list(_value(source, parent, "latex_repair_issues_remaining")),
+        "final_gate_steps": _ensure_list(_value(source, parent, "final_gate_steps")),
+        "final_gate_failed_step": _value(source, parent, "final_gate_failed_step"),
+        "deterministic_repair_applied": _value(source, parent, "deterministic_repair_applied"),
+        "values_recomputed": _value(source, parent, "values_recomputed"),
+        "memory_filter_stage": _value(source, parent, "memory_filter_stage"),
+        "memory_rejected_case_ids": _ensure_list(_value(source, parent, "memory_rejected_case_ids")),
+        "memory_rejection_reasons": _ensure_list(_value(source, parent, "memory_rejection_reasons")),
+        "final_memory_case_ids": _ensure_list(_value(source, parent, "final_memory_case_ids")),
+        "judge_response_format_mode": _value(source, parent, "judge_response_format_mode"),
+        "judge_raw_response_preview": _truncate_text(_value(source, parent, "judge_raw_response_preview"), 1000),
+        "judge_json_parse_error": _value(source, parent, "judge_json_parse_error"),
+        "judge_openrouter_error_type": _value(source, parent, "judge_openrouter_error_type"),
+        "validator_response_format_mode": _value(source, parent, "validator_response_format_mode"),
+        "validator_raw_response_preview": _truncate_text(_value(source, parent, "validator_raw_response_preview"), 1000),
+        "validator_json_parse_error": _value(source, parent, "validator_json_parse_error"),
         "final_display_decision": _value(source, parent, "final_display_decision"),
         "final_display_blocking_reasons": _ensure_list(
             _value(source, parent, "final_display_blocking_reasons")
         ),
         "instruction": _value(source, parent, "prompt"),
+        "generation_metadata": _value(source, parent, "generation_metadata"),
         "solution": _value(source, parent, "hidden_solution"),
         "expected_answer": _value(source, parent, "display_answer"),
         "answer_kind": _value(source, parent, "answer_kind"),
@@ -170,6 +228,7 @@ def _build_audit_record(
         "memory_adaptation_note": _value(source, parent, "memory_adaptation_note"),
         "retrieved_case_ids": _ensure_list(_value(source, parent, "retrieved_case_ids")),
         "source_case_summaries": _ensure_list(_value(source, parent, "source_case_summaries")),
+        "source_case_instructions": _ensure_list(_value(source, parent, "source_case_instructions")),
         "support_summary": _value(source, parent, "support_summary"),
         "support_ready": _value(source, parent, "support_ready"),
         "table_data": _value(source, parent, "table_data"),
@@ -200,3 +259,31 @@ def _ensure_list(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+def _truncate_text(value: Any, limit: int) -> str:
+    """Keep raw model diagnostics useful without letting the audit file balloon."""
+    text = str(value or "").strip()
+    return text[:limit]
+
+
+def _hash_user_identifier(user_email: str) -> str:
+    """Return a stable anonymous identifier for audit analysis."""
+    normalized = str(user_email or "").strip().lower()
+    if not normalized or normalized == "inconnu":
+        return "anonymous"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+
+def _redact_email(user_email: str) -> str:
+    """Avoid writing real e-mail addresses in the local JSONL audit file."""
+    normalized = str(user_email or "").strip().lower()
+    if "@" not in normalized:
+        return "anonymous"
+    domain = normalized.split("@", 1)[1]
+    return f"anonymous@{domain}" if domain else "anonymous"
+
+
+def _redact_display_name(display_name: str) -> str:
+    """Avoid writing real display names in the local JSONL audit file."""
+    return "Utilisateur anonymisé" if str(display_name or "").strip() else "Utilisateur anonyme"

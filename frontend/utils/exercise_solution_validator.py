@@ -14,10 +14,13 @@ except ImportError:  # pragma: no cover
     sp = None
 
 from frontend.utils.openrouter_client import (
+    call_openrouter_chat,
+    extract_json_object,
     extract_openrouter_text,
     get_openrouter_client,
     get_openrouter_settings,
     has_openrouter_config,
+    parse_json_object_detailed,
     summarize_openrouter_response_issue,
 )
 from frontend.utils.validators.local_math_validators import validate_exercise_locally
@@ -280,7 +283,6 @@ def _build_solution_validator_prompt(
 
 def _call_openrouter_solution_validator(prompt: str, model_name: str) -> dict[str, Any]:
     """Call the Qwen validator model and parse its JSON output."""
-    client = get_openrouter_client()
     messages = [
         {
             "role": "system",
@@ -291,58 +293,44 @@ def _call_openrouter_solution_validator(prompt: str, model_name: str) -> dict[st
         },
         {"role": "user", "content": prompt},
     ]
-    request_kwargs = {
-        "model": model_name,
-        "messages": messages,
-        "temperature": 0,
-        "max_tokens": 1400,
-    }
-
-    try:
-        response = client.chat.completions.create(
-            response_format={"type": "json_object"},
-            **request_kwargs,
-        )
-    except Exception:
-        response = client.chat.completions.create(**request_kwargs)
-
-    content = extract_openrouter_text(response)
-    if not content:
-        raise RuntimeError(summarize_openrouter_response_issue(response))
-
-    payload = _extract_json_payload(content)
-    if payload:
-        return payload
-
-    repair_messages = [
-        *messages,
-        {"role": "assistant", "content": content},
-        {
-            "role": "user",
-            "content": "Reformate strictement ta reponse precedente en un seul objet JSON valide.",
-        },
-    ]
-    try:
-        repair_response = client.chat.completions.create(
-            response_format={"type": "json_object"},
-            model=model_name,
-            messages=repair_messages,
-            temperature=0,
-            max_tokens=1400,
-        )
-    except Exception:
-        repair_response = client.chat.completions.create(
-            model=model_name,
-            messages=repair_messages,
-            temperature=0,
-            max_tokens=1400,
-        )
-
-    repair_content = extract_openrouter_text(repair_response)
-    payload = _extract_json_payload(repair_content)
+    result = call_openrouter_chat(
+        model=model_name,
+        messages=messages,
+        temperature=0,
+        top_p=0.1,
+        max_tokens=3000,
+        purpose="validator",
+        json_schema=_solution_validator_schema(),
+    )
+    if not result.ok:
+        raise RuntimeError(result.error_message or result.error_type or "OpenRouter validator call failed.")
+    parse_result = parse_json_object_detailed(result.content)
+    payload = parse_result.data or {}
     if not payload:
         raise RuntimeError("Le validateur de solution n'a pas renvoye un JSON exploitable.")
     return payload
+
+
+def _solution_validator_schema() -> dict[str, Any]:
+    return {
+        "name": "mathtutorai_solution_validator",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": True,
+            "required": ["decision", "summary", "issues", "confidence", "solution_final_answer", "correct_option_text"],
+            "properties": {
+                "decision": {"type": "string", "enum": ["approved", "rejected"]},
+                "summary": {"type": "string"},
+                "issues": {"type": "array", "items": {"type": "string"}},
+                "confidence": {"type": "number"},
+                "solution_final_answer": {"type": "string"},
+                "correct_option_text": {"type": "string"},
+                "requires_symbolic_check": {"type": "boolean"},
+                "symbolic_check_recommendation": {"type": "string"},
+            },
+        },
+    }
 
 
 def _collect_local_issues(exercise: dict[str, Any]) -> list[str]:
@@ -357,6 +345,14 @@ def _collect_local_issues(exercise: dict[str, Any]) -> list[str]:
     if exercise.get("exercise_type") == "QCM" and len(exercise.get("options", []) or []) < 2:
         issues.append("Le QCM ne contient pas assez de choix pour une verification fiable.")
     return issues
+
+
+def _domain_validator_summary(checks: dict[str, Any]) -> tuple[str, str, list[str]]:
+    for name in ("bayes", "regression_deterministic", "exponential_law", "probability"):
+        outcome = checks.get(name) or {}
+        if outcome.get("applicable"):
+            return name, "approved" if outcome.get("status") == "passed" else "wrong", list(outcome.get("issues") or [])
+    return "", "", []
 
 
 def _run_sympy_consistency_checks(
@@ -392,7 +388,18 @@ def _run_sympy_consistency_checks(
         "symbolic_checks_ran": local_outcome["symbolic_checks_ran"],
         "symbolic_checks_passed": local_outcome["symbolic_checks_passed"],
         "symbolic_checks_required": local_outcome["symbolic_checks_required"],
+        "domain_router_key": local_outcome.get("domain_router_key", ""),
+        "domain_router_reason": local_outcome.get("domain_router_reason", ""),
     }
+    domain_name, domain_flag, domain_issues = _domain_validator_summary(local_outcome.get("checks", {}))
+    if domain_name:
+        normalized_fields.update(
+            {
+                "domain_validator_name": domain_name,
+                "domain_validator_flag": domain_flag,
+                "domain_validator_issues": domain_issues,
+            }
+        )
     symbolic_checks_ran = bool(local_outcome["symbolic_checks_ran"])
     symbolic_checks_passed = local_outcome["symbolic_checks_passed"]
     symbolic_checks_required = bool(local_outcome["symbolic_checks_required"])
@@ -407,6 +414,48 @@ def _run_sympy_consistency_checks(
             "report": " | ".join(part for part in report_parts if part),
             "normalized_fields": normalized_fields,
             "status_label": "Rejetée par validation locale",
+            "local_validation_flag": local_outcome["local_validation_flag"],
+            "local_validation_summary": local_outcome["local_validation_summary"],
+            "local_validation_issues": local_outcome["local_validation_issues"],
+            "pedagogical_completeness_flag": local_outcome["pedagogical_completeness_flag"],
+            "pedagogical_completeness_summary": local_outcome["pedagogical_completeness_summary"],
+            "pedagogical_completeness_issues": local_outcome["pedagogical_completeness_issues"],
+            "symbolic_checks_ran": symbolic_checks_ran,
+            "symbolic_checks_passed": symbolic_checks_passed,
+            "symbolic_checks_required": symbolic_checks_required,
+        }
+
+    domain_checks = local_outcome.get("checks", {})
+    approved_domain = next(
+        (
+            name
+            for name in ("bayes", "regression_deterministic", "exponential_law", "probability")
+            if (domain_checks.get(name) or {}).get("applicable")
+            and (domain_checks.get(name) or {}).get("status") == "passed"
+        ),
+        "",
+    )
+    if approved_domain:
+        normalized_fields.update(
+            {
+                "domain_validator_name": approved_domain,
+                "domain_validator_flag": "approved",
+                "domain_validator_issues": [],
+                "verification_ready": True,
+                "verification_message": "La solution a ete controlee par un validateur deterministe de domaine.",
+            }
+        )
+        return {
+            "decision": "approved",
+            "summary": f"Validation deterministe de domaine approuvee : {approved_domain}.",
+            "issues": [],
+            "report": " | ".join(part for part in report_parts if part),
+            "normalized_fields": normalized_fields,
+            "status_label": _validation_status_label(
+                symbolic_checks_ran=symbolic_checks_ran,
+                symbolic_checks_passed=symbolic_checks_passed,
+                symbolic_checks_required=symbolic_checks_required,
+            ),
             "local_validation_flag": local_outcome["local_validation_flag"],
             "local_validation_summary": local_outcome["local_validation_summary"],
             "local_validation_issues": local_outcome["local_validation_issues"],
@@ -462,7 +511,11 @@ def _run_sympy_consistency_checks(
                 "verification_message": "La bonne option a ete revalidee par Qwen et controlee localement.",
             }
         )
-        status_label = "Validée par LLM + SymPy" if symbolic_checks_ran else "Validée par LLM seulement"
+        status_label = _validation_status_label(
+            symbolic_checks_ran=symbolic_checks_ran,
+            symbolic_checks_passed=symbolic_checks_passed,
+            symbolic_checks_required=symbolic_checks_required,
+        )
         return {
             "decision": "approved",
             "summary": "La bonne option du QCM est coherente avec la solution interne.",
@@ -560,7 +613,11 @@ def _run_sympy_consistency_checks(
             "issues": [],
             "report": " | ".join(part for part in report_parts if part),
             "normalized_fields": normalized_fields,
-            "status_label": "Validée par LLM + SymPy",
+            "status_label": _validation_status_label(
+                symbolic_checks_ran=True,
+                symbolic_checks_passed=True,
+                symbolic_checks_required=True,
+            ),
             "local_validation_flag": local_outcome["local_validation_flag"],
             "local_validation_summary": local_outcome["local_validation_summary"],
             "local_validation_issues": local_outcome["local_validation_issues"],
@@ -615,7 +672,11 @@ def _run_sympy_consistency_checks(
             "issues": [],
             "report": "Controle local des ensembles reussi.",
             "normalized_fields": normalized_fields,
-            "status_label": "Validée par LLM seulement",
+            "status_label": _validation_status_label(
+                symbolic_checks_ran=symbolic_checks_ran,
+                symbolic_checks_passed=symbolic_checks_passed,
+                symbolic_checks_required=symbolic_checks_required,
+            ),
             "local_validation_flag": local_outcome["local_validation_flag"],
             "local_validation_summary": local_outcome["local_validation_summary"],
             "local_validation_issues": local_outcome["local_validation_issues"],
@@ -646,19 +707,40 @@ def _run_sympy_consistency_checks(
             "symbolic_checks_required": symbolic_checks_required,
         }
 
+    status_label = _validation_status_label(
+        symbolic_checks_ran=symbolic_checks_ran,
+        symbolic_checks_passed=symbolic_checks_passed,
+        symbolic_checks_required=symbolic_checks_required,
+    )
+    report = " | ".join(
+        part
+        for part in [
+            *report_parts,
+            "Controle symbolique local execute." if symbolic_checks_ran else "Format non symbolique : controle LLM seulement.",
+        ]
+        if part
+    )
     normalized_fields.update(
         {
-            "verification_ready": False,
-            "verification_message": "Validation LLM terminee, mais ce format textuel n'appelle pas de controle symbolique complet.",
+            "verification_ready": bool(symbolic_checks_ran),
+            "verification_message": (
+                "Validation LLM terminee et controle local deterministe confirme."
+                if symbolic_checks_ran
+                else "Validation LLM terminee, mais ce format textuel n'appelle pas de controle symbolique complet."
+            ),
         }
     )
     return {
         "decision": "approved",
-        "summary": "Le format textuel a ete approuve par l'agent LLM, sans controle SymPy complet.",
+        "summary": (
+            "Le format textuel a ete approuve par l'agent LLM et par les controles locaux applicables."
+            if symbolic_checks_ran
+            else "Le format textuel a ete approuve par l'agent LLM, sans controle SymPy complet."
+        ),
         "issues": [],
-        "report": "Format non symbolique : controle LLM seulement.",
+        "report": report,
         "normalized_fields": normalized_fields,
-        "status_label": "Validée par LLM seulement",
+        "status_label": status_label,
         "local_validation_flag": local_outcome["local_validation_flag"],
         "local_validation_summary": local_outcome["local_validation_summary"],
         "local_validation_issues": local_outcome["local_validation_issues"],
@@ -1253,24 +1335,8 @@ def _deduplicate_preserving_order(values: list[str]) -> list[str]:
 
 def _extract_json_payload(raw_content: str) -> dict[str, Any]:
     """Parse the first valid JSON object returned by the model."""
-    content = (raw_content or "").strip()
-    if not content:
-        return {}
-
-    if content.startswith("```"):
-        content = content.strip("`")
-        if content.lower().startswith("json"):
-            content = content[4:].strip()
-
-    parsed = _load_json_candidate(content)
-    if parsed:
-        return parsed
-
-    start = content.find("{")
-    end = content.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return {}
-    return _load_json_candidate(content[start : end + 1])
+    parsed = extract_json_object(raw_content)
+    return parsed or {}
 
 
 def _load_json_candidate(candidate: str) -> dict[str, Any]:
@@ -1289,3 +1355,19 @@ def _coerce_confidence(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.0
     return max(0.0, min(1.0, confidence))
+
+
+def _validation_status_label(
+    *,
+    symbolic_checks_ran: bool,
+    symbolic_checks_passed: bool | None,
+    symbolic_checks_required: bool,
+) -> str:
+    """Return a truthful validation label for the student-facing metadata."""
+    if symbolic_checks_required and symbolic_checks_passed is False:
+        return "Rejetee par validation locale"
+    if symbolic_checks_ran and symbolic_checks_passed is True:
+        return "Validee par LLM + SymPy"
+    if symbolic_checks_required and not symbolic_checks_ran:
+        return "Validation symbolique non applicable"
+    return "Validee par LLM seulement"

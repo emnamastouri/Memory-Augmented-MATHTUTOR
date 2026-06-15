@@ -129,7 +129,7 @@ def _build_alignment_catalog() -> dict[str, dict[str, list[str]]]:
 def _split_alignment_topic(raw_topic: str) -> tuple[str, str]:
     """Split one detailed topic label into theme family and subtopic."""
     cleaned = " ".join(raw_topic.split())
-    for separator_pattern in (r"\s+—\s+", r"\s+â€”\s+", r"\s+–\s+"):
+    for separator_pattern in (r"\s+—\s+", r"\s+–\s+"):
         parts = re.split(separator_pattern, cleaned, maxsplit=1)
         if len(parts) == 2:
             theme, subtopic = [part.strip() for part in parts]

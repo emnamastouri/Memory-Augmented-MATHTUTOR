@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from fractions import Fraction
+import json
 import math
 import re
 from typing import Any
@@ -11,6 +12,20 @@ try:
     import sympy as sp
 except ImportError:  # pragma: no cover
     sp = None
+
+from frontend.utils.math_format_guard import repair_math_text_locally
+from frontend.utils.validators.probability_solver import (
+    repair_probability_exercise_with_deterministic_solution,
+    validate_probability_exercise,
+)
+from frontend.utils.validators.bayes_solver import validate_bayes_exercise
+from frontend.utils.validators.complex_number_solver import validate_complex_number_exercise
+from frontend.utils.validators.domain_router import get_domain_validator_key, explain_domain_route
+from frontend.utils.validators.exponential_law_solver import validate_exponential_law_exercise
+from frontend.utils.validators.graph_support_validator import validate_graph_support
+from frontend.utils.validators.linear_system_solver import validate_linear_system_exercise
+from frontend.utils.validators.question_coverage import validate_question_answer_coverage
+from frontend.utils.validators.regression_solver import validate_regression_exercise
 
 
 VISUAL_CHART_PATTERNS = (
@@ -46,10 +61,12 @@ LATEX_CORRUPTION_PATTERNS = (
     (r"\bfrace\b", "Le token 'frace' indique une fraction LaTeX corrompue."),
     (r"\bsqrtt\b", "Le token 'sqrtt' indique une racine LaTeX corrompue."),
     (r"\bfracpi\b", "Le token 'fracpi' indique une fraction de pi corrompue."),
-    (r"\bmathbb[a-z]\b", "Le token 'mathbbR/mathbbN/...' n'a pas ete converti proprement."),
+    (r"\bfrac[0-9]", "Un token de fraction compacte du type 'frac1' n'a pas ete converti proprement."),
+    (r"\bmathbb\s*[a-z]\b", "Le token 'mathbbR/mathbbN/...' n'a pas ete converti proprement."),
     (r"\bvec[ijk]\b", "Les vecteurs unitaires 'veci/vecj/veck' n'ont pas ete convertis proprement."),
     (r"(?:\+|-|->|vers|tend(?:re)?\s+vers|lim(?:ite)?)[^.\n]{0,30}\bin\s+fty\b", "La borne infinie contient le token corrompu 'in fty'."),
     (r"(?:\+|-|->|vers|tend(?:re)?\s+vers|lim(?:ite)?)[^.\n]{0,30}\bin\s+t\b", "La borne infinie contient le token corrompu 'in t'."),
+    (r"\bin\s+t_", "Le token 'in t_' indique une integrale corrompue."),
 )
 
 
@@ -62,25 +79,37 @@ def validate_exercise_locally(record: dict[str, Any]) -> dict[str, Any]:
         or _extract_final_answer_from_solution_text(str(record.get("hidden_solution", "")))
     )
     answer_kind = str(record.get("answer_kind", "text")).strip().lower() or "text"
+    domain_key = get_domain_validator_key(record.get("topic", ""), record.get("subtopic", ""), record.get("generation_metadata") or {})
 
     checks = {
         "formatting": _validate_formatting(record),
         "correction_guard": _check_problematic_correction_language(record),
         "derivative": _validate_derivative(record, display_answer, extracted_answer, answer_kind),
         "function_membership": _validate_function_membership(record),
+        "ode": _validate_differential_equation(record),
         "inverse_function": _validate_inverse_function(record),
         "probability": _validate_probability(record, display_answer, extracted_answer, answer_kind),
+        "bayes": _validate_bayes(record),
+        "exponential_law": _validate_exponential_law(record),
         "complex": _validate_complex(record),
+        "complex_numbers": _validate_complex_numbers(record),
+        "linear_systems": _validate_linear_systems(record),
         "conics": _validate_conics(record),
         "regression": _validate_regression_line(record),
+        "regression_numeric": _validate_regression_numeric(record),
+        "regression_deterministic": _validate_regression_deterministic(record),
         "pedagogical_completeness": _validate_pedagogical_completeness(record),
         "integral_area": _validate_integral_area(record, display_answer, extracted_answer, answer_kind),
         "visual_support": _validate_visual_support(record),
+        "graph_support": _validate_graph_support(record),
+        "question_coverage": _validate_question_coverage(record),
         "graph_theory": _validate_graph_theory(record),
         "recurrence_relation": _validate_recurrence_relations(record),
+        "sequence_numeric": _validate_numeric_sequence_patterns(record),
         "adjacent_sequences": _validate_adjacent_sequences(record),
         "domain": _validate_domain(record),
     }
+    checks = _route_domain_checks(domain_key, checks)
 
     issues: list[str] = []
     symbolic_checks_required = False
@@ -140,6 +169,8 @@ def validate_exercise_locally(record: dict[str, Any]) -> dict[str, Any]:
         "symbolic_checks_ran": symbolic_checks_ran,
         "symbolic_checks_passed": symbolic_checks_passed,
         "symbolic_checks_required": symbolic_checks_required,
+        "domain_router_key": domain_key,
+        "domain_router_reason": explain_domain_route(record.get("topic", ""), record.get("subtopic", ""), record.get("generation_metadata") or {}),
     }
 
 
@@ -158,6 +189,7 @@ def _build_check_result(
     summary: str = "",
     requires_symbolic: bool = False,
     symbolic_ran: bool = False,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "name": name,
@@ -167,6 +199,7 @@ def _build_check_result(
         "summary": summary,
         "requires_symbolic": requires_symbolic,
         "symbolic_ran": symbolic_ran,
+        "metadata": metadata or {},
     }
 
 
@@ -358,6 +391,125 @@ def _validate_function_membership(record: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _validate_differential_equation(record: dict[str, Any]) -> dict[str, Any]:
+    """Validate common Bac differential-equation patterns deterministically.
+
+    The checker is deliberately conservative: it only applies to patterns that it
+    can verify without interpreting a complete free-form proof.  It currently
+    covers the frequent Bac pattern ``y'' + y = 0`` and the associated functional
+    set condition ``f'(x) + f(pi/2 - x) = 0``.
+    """
+    combined = "\n".join(
+        str(record.get(field, ""))
+        for field in (
+            "title",
+            "topic",
+            "subtopic",
+            "prompt",
+            "hidden_solution",
+            "display_answer",
+        )
+    )
+    normalized = _normalize_lookup(combined)
+    prompt_normalized = _normalize_lookup(record.get("prompt", ""))
+    applicable = any(
+        token in normalized
+        for token in (
+            "equation differentielle",
+            "equations differentielles",
+            "y''+y=0",
+            "y'' + y = 0",
+            "y''+ a^2y=0",
+            "y'' + a^2y = 0",
+        )
+    )
+    if not applicable:
+        return _build_check_result(name="ode", applicable=False, passed=None)
+
+    if sp is None:
+        return _build_check_result(
+            name="ode",
+            applicable=True,
+            passed=False,
+            issues=["Validation symbolique requise pour les equations differentielles, mais SymPy est indisponible."],
+            summary="SymPy indisponible pour le controle d'equation differentielle.",
+            requires_symbolic=True,
+            symbolic_ran=False,
+        )
+
+    issues: list[str] = []
+    report_parts: list[str] = []
+    x = sp.symbols("x")
+    A, B = sp.symbols("A B")
+
+    # Pattern 1: y'' + y = 0 has the general solution A sin(x) + B cos(x).
+    if _contains_ode_y_second_plus_y_zero(combined):
+        candidate = A * sp.sin(x) + B * sp.cos(x)
+        residual = sp.simplify(sp.diff(candidate, x, 2) + candidate)
+        if residual != 0:
+            issues.append("ODE validator failed: A sin(x)+B cos(x) ne verifie pas y''+y=0.")
+        else:
+            report_parts.append("ODE y''+y=0 verifiee par substitution de A sin(x)+B cos(x).")
+
+        if not _solution_mentions_sine_cosine_family(combined):
+            issues.append("ODE validator failed: la solution generale A sin(x)+B cos(x) n'est pas clairement annoncee.")
+
+    # Pattern 2: E = {f | f'(x)+f(pi/2-x)=0}.  Verify the final family B cos(x).
+    if _contains_functional_ode_condition(prompt_normalized):
+        candidate_e = B * sp.cos(x)
+        residual_e = sp.simplify(sp.diff(candidate_e, x) + candidate_e.subs(x, sp.pi / 2 - x))
+        if residual_e != 0:
+            issues.append("ODE validator failed: B cos(x) ne verifie pas f'(x)+f(pi/2-x)=0.")
+        else:
+            report_parts.append("Condition de l'ensemble E verifiee pour B cos(x).")
+
+        general = A * sp.sin(x) + B * sp.cos(x)
+        membership_residual = sp.simplify(
+            sp.diff(general, x) + general.subs(x, sp.pi / 2 - x)
+        )
+        # The residual must be proportional to A*cos(x); hence forcing it to be
+        # zero for every x gives A=0 and the family B cos(x).
+        if sp.simplify(membership_residual - 2 * A * sp.cos(x)) != 0:
+            issues.append("ODE validator failed: la reduction de la condition E vers A=0 n'a pas ete confirmee.")
+        if "cos" not in normalized:
+            issues.append("ODE validator failed: la famille finale de E doit contenir des fonctions en cosinus.")
+
+    return _build_check_result(
+        name="ode",
+        applicable=True,
+        passed=not issues,
+        issues=_deduplicate_preserving_order(issues),
+        summary=" | ".join(report_parts) or "Controle symbolique d'equation differentielle execute.",
+        requires_symbolic=True,
+        symbolic_ran=True,
+    )
+
+
+def _contains_ode_y_second_plus_y_zero(text: str) -> bool:
+    compact = re.sub(r"\s+", "", str(text or "").lower())
+    compact = compact.replace("\\", "")
+    return "y''+y=0" in compact or "y''+1*y=0" in compact
+
+
+def _contains_functional_ode_condition(normalized_prompt: str) -> bool:
+    compact = normalized_prompt.replace(" ", "")
+    return (
+        ("f'(x)+f" in compact or "f(x)+f" in compact or "fprime(x)+f" in compact)
+        and ("pi/2-x" in compact or "dfracpi2-x" in compact or "fracpi2-x" in compact)
+        and "=0" in compact
+    )
+
+
+def _solution_mentions_sine_cosine_family(text: str) -> bool:
+    normalized = _normalize_lookup(text)
+    return (
+        "sin" in normalized
+        and "cos" in normalized
+        and ("a" in normalized or "alpha" in normalized)
+        and ("b" in normalized or "beta" in normalized)
+    )
+
+
 def _validate_inverse_function(record: dict[str, Any]) -> dict[str, Any]:
     """Validate claimed inverse functions and basic domain consistency."""
     prompt = str(record.get("prompt", "")).strip()
@@ -481,15 +633,140 @@ def _validate_probability(
                 f"Probability validator failed: {expression} = {float(expected):.6g}, pas {float(obtained):.6g}."
             )
 
+    deterministic_ok, deterministic_issues, deterministic_metadata = validate_probability_exercise(record)
+    if deterministic_metadata.get("applicable"):
+        report_parts.append("Controle d'urne/local: " + json.dumps(deterministic_metadata, ensure_ascii=False))
+    issues.extend(deterministic_issues)
+
     return _build_check_result(
         name="probability",
         applicable=True,
-        passed=not issues,
+        passed=not issues and deterministic_ok,
         issues=issues,
         summary=" | ".join(report_parts) if report_parts else "Probabilites controlees localement.",
         requires_symbolic=True,
         symbolic_ran=True,
+        metadata=deterministic_metadata,
     )
+
+
+def _validate_bayes(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_bayes_exercise(record)
+    applicable = bool(metadata.get("applicable"))
+    return _build_check_result(
+        name="bayes",
+        applicable=applicable,
+        passed=ok if applicable else None,
+        issues=issues,
+        summary="Controle deterministe Bayes/probabilites conditionnelles.",
+        requires_symbolic=applicable,
+        symbolic_ran=applicable,
+        metadata=metadata,
+    )
+
+
+def _validate_exponential_law(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_exponential_law_exercise(record)
+    applicable = bool(metadata.get("applicable"))
+    return _build_check_result(
+        name="exponential_law",
+        applicable=applicable,
+        passed=ok if applicable else None,
+        issues=issues,
+        summary="Controle deterministe de loi exponentielle.",
+        requires_symbolic=applicable,
+        symbolic_ran=applicable,
+        metadata=metadata,
+    )
+
+
+def _validate_regression_deterministic(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_regression_exercise(record)
+    applicable = bool(metadata.get("applicable"))
+    return _build_check_result(
+        name="regression_deterministic",
+        applicable=applicable,
+        passed=ok if applicable else None,
+        issues=issues,
+        summary="Controle deterministe des donnees et calculs de regression.",
+        requires_symbolic=applicable,
+        symbolic_ran=applicable,
+        metadata=metadata,
+    )
+
+
+def _validate_complex_numbers(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_complex_number_exercise(record)
+    return _build_check_result(
+        name="complex_numbers",
+        applicable=bool(metadata.get("applicable", True)),
+        passed=ok,
+        issues=issues,
+        summary="Controle deterministe des nombres complexes.",
+        requires_symbolic=True,
+        symbolic_ran=True,
+        metadata=metadata,
+    )
+
+
+def _validate_linear_systems(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_linear_system_exercise(record)
+    return _build_check_result(
+        name="linear_systems",
+        applicable=True,
+        passed=ok,
+        issues=issues,
+        summary="Controle deterministe des matrices/systemes lineaires.",
+        requires_symbolic=True,
+        symbolic_ran=True,
+        metadata=metadata,
+    )
+
+
+def _validate_graph_support(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_graph_support(record)
+    return _build_check_result(
+        name="graph_support",
+        applicable=bool(metadata.get("applicable")),
+        passed=ok if metadata.get("applicable") else None,
+        issues=issues,
+        summary="Controle du support visuel ou de la liste d'aretes pour les graphes.",
+        metadata=metadata,
+    )
+
+
+def _validate_question_coverage(record: dict[str, Any]) -> dict[str, Any]:
+    ok, issues, metadata = validate_question_answer_coverage(record)
+    return _build_check_result(
+        name="question_coverage",
+        applicable=True,
+        passed=ok,
+        issues=issues,
+        summary="Controle question par question de la solution.",
+        metadata=metadata,
+    )
+
+
+def _route_domain_checks(domain_key: str | None, checks: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Keep non-domain checks, but suppress unrelated domain validator outcomes."""
+    domain_groups = {
+        "complex_numbers": {"complex", "complex_numbers"},
+        "linear_systems": {"linear_systems"},
+        "regression": {"regression", "regression_numeric", "regression_deterministic", "pedagogical_completeness"},
+        "bayes": {"bayes"},
+        "finite_probability": {"probability"},
+        "exponential_law": {"exponential_law"},
+        "sequences": {"recurrence_relation", "sequence_numeric", "adjacent_sequences"},
+        "ode": {"ode"},
+        "graphs": {"graph_support", "graph_theory", "visual_support"},
+    }
+    all_domain_checks = set().union(*domain_groups.values())
+    allowed = domain_groups.get(domain_key or "", set())
+    routed = dict(checks)
+    for name in all_domain_checks:
+        if name in routed and name not in allowed:
+            routed[name] = _build_check_result(name=name, applicable=False, passed=None)
+    return routed
 
 
 def _validate_complex(record: dict[str, Any]) -> dict[str, Any]:
@@ -649,17 +926,25 @@ def _validate_regression_line(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_pedagogical_completeness(record: dict[str, Any]) -> dict[str, Any]:
-    """Ensure regression/Mayer exercises ask for the pedagogically expected steps."""
+    """Ensure regression exercises are complete without confusing classical regression with Mayer.
+
+    Two pedagogical families are accepted:
+    - classical least-squares/correlation: r, regression line, optional estimation;
+    - Mayer adjustment: point moyen G, grouped means G1/G2, and adjustment line.
+    """
     prompt = str(record.get("prompt", "")).strip()
     title = str(record.get("title", "")).strip()
     objective = str(record.get("learning_objective", "")).strip()
     context = _normalize_lookup(" ".join([title, objective, prompt]))
+    prompt_norm = _normalize_lookup(prompt)
     regression_markers = (
         "droite de mayer",
         "ajuster cette serie double",
         "ajuster cette serie",
         "droite de regression",
         "regression",
+        "correlation",
+        "coefficient de correlation",
     )
     applicable = any(marker in context for marker in regression_markers)
     if not applicable:
@@ -669,25 +954,37 @@ def _validate_pedagogical_completeness(record: dict[str, Any]) -> dict[str, Any]
     has_total_mean_task = _has_total_mean_task(prompt)
     has_grouped_means_task = _has_grouped_means_task(prompt)
     has_line_task = _has_adjustment_line_task(prompt)
+    has_correlation_task = "correlation" in prompt_norm or "coefficient de correlation" in prompt_norm
+    has_estimation_task = any(token in prompt_norm for token in ("estimer", "prevoir", "prediction", "determiner a partir de", "depassera"))
+    asks_mayer = _asks_mayer_method(" ".join([title, objective, prompt]))
 
-    if not has_total_mean_task:
-        issues.append(
-            "Pedagogical-completeness validator failed: l'enonce de regression ne demande pas le calcul du point moyen G."
-        )
-    if not has_grouped_means_task:
-        issues.append(
-            "Pedagogical-completeness validator failed: l'enonce de regression ne demande pas les points moyens groupes G1/G2 ou les moyennes partielles."
-        )
-    if not has_line_task:
-        issues.append(
-            "Pedagogical-completeness validator failed: l'enonce de regression ne demande pas l'equation de la droite d'ajustement."
-        )
-
-    title_or_objective_claims_regression = any(marker in _normalize_lookup(" ".join([title, objective])) for marker in regression_markers)
-    if title_or_objective_claims_regression and has_total_mean_task and not has_grouped_means_task and not has_line_task:
-        issues.append(
-            "Pedagogical-completeness validator failed: le titre ou l'objectif annonce une droite de Mayer ou une regression, mais l'enonce se limite au point moyen."
-        )
+    if asks_mayer:
+        if not has_total_mean_task:
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce de Mayer ne demande pas le calcul du point moyen G."
+            )
+        if not has_grouped_means_task:
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce de Mayer ne demande pas les points moyens groupes G1/G2 ou les moyennes partielles."
+            )
+        if not has_line_task:
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce de Mayer ne demande pas l'equation de la droite d'ajustement."
+            )
+    else:
+        # Classical regression exercises do not have to ask for G, G1 or G2.
+        if not (has_correlation_task or has_line_task):
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce de regression classique doit demander un coefficient de correlation ou une droite de regression."
+            )
+        if "regression" in context and not has_line_task:
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce annonce une regression mais ne demande pas l'equation de la droite de regression."
+            )
+        if has_estimation_task and not has_line_task:
+            issues.append(
+                "Pedagogical-completeness validator failed: l'enonce demande une estimation sans demander ou fournir une droite d'ajustement."
+            )
 
     table_issue = _check_two_variable_table_caption(record.get("table_data"))
     if table_issue:
@@ -698,9 +995,93 @@ def _validate_pedagogical_completeness(record: dict[str, Any]) -> dict[str, Any]
         applicable=True,
         passed=not issues,
         issues=issues,
-        summary="Controle de completude pedagogique pour les exercices de regression/Mayer.",
+        summary="Controle de completude pedagogique pour regression classique ou methode de Mayer.",
         requires_symbolic=False,
         symbolic_ran=False,
+    )
+
+
+def _validate_regression_numeric(record: dict[str, Any]) -> dict[str, Any]:
+    """Recompute r, the regression line and common estimates from attached table_data."""
+    prompt = str(record.get("prompt", ""))
+    solution = str(record.get("hidden_solution", ""))
+    display_answer = str(record.get("display_answer", ""))
+    combined = f"{prompt}\n{solution}\n{display_answer}"
+    normalized = _normalize_lookup(combined)
+    applicable = any(token in normalized for token in ("regression", "correlation", "droite d ajustement", "droite de mayer"))
+    if not applicable:
+        return _build_check_result(name="regression_numeric", applicable=False, passed=None)
+
+    table_info = _extract_regression_table_xy(record.get("table_data"), prompt)
+    if not table_info:
+        # If no table is attached, another support validator will handle missing supports.
+        return _build_check_result(name="regression_numeric", applicable=False, passed=None)
+
+    x_values, y_values, year_offset = table_info
+    if len(x_values) < 3 or len(x_values) != len(y_values):
+        return _build_check_result(name="regression_numeric", applicable=False, passed=None)
+
+    expected = _compute_regression_values(x_values, y_values)
+    if expected is None:
+        return _build_check_result(name="regression_numeric", applicable=False, passed=None)
+
+    issues: list[str] = []
+    claimed_r = _extract_claimed_correlation(combined)
+    if claimed_r is not None and abs(abs(claimed_r) - abs(expected["r"])) > 0.025:
+        issues.append(
+            "Regression numeric validator failed: le coefficient de correlation annonce "
+            f"({claimed_r:.4g}) ne correspond pas au tableau ({expected['r']:.4g})."
+        )
+
+    line = _extract_regression_equation(combined)
+    if line is not None:
+        claimed_slope, claimed_intercept = line
+        if abs(claimed_slope - expected["slope"]) > max(0.25, 0.015 * abs(expected["slope"])):
+            issues.append(
+                "Regression numeric validator failed: la pente de la droite de regression annoncee "
+                f"({claimed_slope:.4g}) ne correspond pas au tableau ({expected['slope']:.4g})."
+            )
+        if abs(claimed_intercept - expected["intercept"]) > max(2.0, 0.01 * abs(expected["intercept"])):
+            issues.append(
+                "Regression numeric validator failed: l'ordonnee a l'origine annoncee "
+                f"({claimed_intercept:.4g}) ne correspond pas au tableau ({expected['intercept']:.4g})."
+            )
+
+    predicted_anchors = _extract_years_asked_for_estimation(prompt)
+    for year in predicted_anchors[:3]:
+        if year_offset is None:
+            continue
+        rank = year - year_offset
+        predicted = expected["slope"] * rank + expected["intercept"]
+        if _has_number_near_anchor(solution + " " + display_answer, str(year), predicted, tolerance=max(3.0, abs(predicted) * 0.005)):
+            continue
+        issues.append(
+            "Regression numeric validator failed: l'estimation pour "
+            f"{year} devrait etre proche de {predicted:.2f} d'apres le tableau et la droite recalculee."
+        )
+
+    threshold = _extract_threshold_value(prompt)
+    if threshold is not None and expected["slope"] > 0 and year_offset is not None:
+        raw_rank = (threshold - expected["intercept"]) / expected["slope"]
+        threshold_rank = math.floor(raw_rank) + 1
+        threshold_year = year_offset + threshold_rank
+        # Only enforce the year when the solution explicitly discusses the threshold.
+        if "depass" in normalized or "seuil" in normalized:
+            years_in_solution = {int(value) for value in re.findall(r"(20\d{2}|19\d{2})", solution + " " + display_answer)}
+            if years_in_solution and threshold_year not in years_in_solution:
+                issues.append(
+                    "Regression numeric validator failed: l'annee de depassement du seuil "
+                    f"{threshold:g} devrait etre {threshold_year} avec les donnees du tableau."
+                )
+
+    return _build_check_result(
+        name="regression_numeric",
+        applicable=True,
+        passed=not issues,
+        issues=issues,
+        summary="Controle numerique local de la regression a partir du tableau fourni.",
+        requires_symbolic=True,
+        symbolic_ran=True,
     )
 
 
@@ -1008,6 +1389,113 @@ def _validate_adjacent_sequences(record: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _validate_numeric_sequence_patterns(record: dict[str, Any]) -> dict[str, Any]:
+    """Validate common Bac suite-numerique patterns deterministically when recognized."""
+    prompt = repair_math_text_locally(str(record.get("prompt", "")))
+    solution = repair_math_text_locally(str(record.get("hidden_solution", "")))
+    combined = f"{prompt}\n{solution}"
+    normalized = _normalize_lookup(combined)
+    suite_context = any(
+        token in _normalize_lookup(
+            " ".join(
+                [
+                    str(record.get("title", "")),
+                    str(record.get("topic", "")),
+                    str(record.get("subtopic", "")),
+                    prompt,
+                ]
+            )
+        )
+        for token in ("suite", "suites numeriques")
+    )
+    if not suite_context and "u_(n+1)" not in combined.lower() and "u_{n+1}" not in combined.lower():
+        return _build_check_result(name="sequence_numeric", applicable=False, passed=None)
+    if sp is None:
+        return _build_check_result(
+            name="sequence_numeric",
+            applicable=True,
+            passed=False,
+            issues=["Validation symbolique requise pour les suites numeriques, mais SymPy est indisponible."],
+            summary="SymPy indisponible pour le controle de suite numerique.",
+            requires_symbolic=True,
+            symbolic_ran=False,
+        )
+
+    initial_match = re.search(r"[uU]_0\s*=\s*1\b", prompt)
+    recurrence_match = re.search(r"[uU]_\{?(?:n|k)\+1\}?\s*=\s*e\^\{-?n\}\s*[uU]_\{?(?:n|k)\}?", prompt)
+    if suite_context and not recurrence_match:
+        return _build_check_result(
+            name="sequence_numeric",
+            applicable=True,
+            passed=False,
+            issues=["Suite-numerique validator failed: la recurrence de la suite est absente ou non parsable dans l'enonce."],
+            summary="L'enonce annonce une suite numerique sans recurrence exploitable.",
+            requires_symbolic=True,
+            symbolic_ran=False,
+        )
+    if not initial_match or not recurrence_match:
+        return _build_check_result(name="sequence_numeric", applicable=False, passed=None)
+
+    issues: list[str] = []
+    n = sp.symbols("n", integer=True, nonnegative=True)
+    expected_u2 = sp.exp(-1)
+    expected_v_diff = -n
+    expected_vn = -n * (n - 1) / 2
+    expected_un = sp.exp(expected_vn)
+
+    if "u_2" in combined.lower():
+        claimed_u2 = _extract_sequence_value(solution, "u", 2)
+        if claimed_u2:
+            try:
+                claimed_u2_expr = sp.sympify(_normalize_recurrence_expression(claimed_u2))
+                if sp.simplify(claimed_u2_expr - expected_u2) != 0:
+                    issues.append("Suite-numerique validator failed: U_2 devrait valoir e^{-1}.")
+            except Exception:
+                issues.append("Suite-numerique validator failed: la valeur annoncee pour U_2 n'est pas interpretable.")
+
+    if "v_(n+1)-v_n" in combined.lower() or "v_{n+1}-v_n" in combined.lower():
+        claimed_v_diff = _extract_sequence_difference(solution, "v")
+        if claimed_v_diff:
+            try:
+                claimed_v_diff_expr = sp.sympify(_normalize_recurrence_expression(claimed_v_diff), locals={"n": n})
+                if sp.simplify(claimed_v_diff_expr - expected_v_diff) != 0:
+                    issues.append("Suite-numerique validator failed: V_(n+1)-V_n devrait valoir -n.")
+            except Exception:
+                issues.append("Suite-numerique validator failed: la relation sur V_(n+1)-V_n n'est pas interpretable.")
+
+    claimed_vn = _extract_general_sequence_expression(solution, "v")
+    if claimed_vn:
+        try:
+            claimed_vn_expr = sp.sympify(_normalize_recurrence_expression(claimed_vn), locals={"n": n})
+            if sp.simplify(claimed_vn_expr - expected_vn) != 0:
+                issues.append("Suite-numerique validator failed: la forme fermee de V_n est incorrecte.")
+        except Exception:
+            issues.append("Suite-numerique validator failed: la forme fermee annoncee pour V_n n'est pas interpretable.")
+
+    claimed_un = _extract_general_sequence_expression(solution, "u")
+    if claimed_un:
+        try:
+            claimed_un_expr = sp.sympify(_normalize_recurrence_expression(claimed_un), locals={"n": n})
+            if sp.simplify(claimed_un_expr - expected_un) != 0:
+                issues.append("Suite-numerique validator failed: la forme fermee de U_n est incorrecte.")
+        except Exception:
+            issues.append("Suite-numerique validator failed: la forme fermee annoncee pour U_n n'est pas interpretable.")
+
+    if "lim" in normalized and "u_n" in combined.lower():
+        if "0" not in _normalize_lookup(solution):
+            issues.append("Suite-numerique validator failed: la limite attendue de U_n est 0.")
+
+    return _build_check_result(
+        name="sequence_numeric",
+        applicable=True,
+        passed=not issues,
+        issues=issues,
+        summary="Controle deterministe de la suite U_(n+1)=e^{-n}U_n avec U_0=1.",
+        requires_symbolic=True,
+        symbolic_ran=True,
+    )
+
+
 def _check_visual_semantic_consistency(prompt: str, chart_data: Any, graph_data: Any) -> list[str]:
     if not isinstance(chart_data, dict) and not isinstance(graph_data, dict):
         return []
@@ -1155,6 +1643,8 @@ def _exercise_forces_symbolic(record: dict[str, Any]) -> bool:
             "reciproque",
             "inverse",
             "recurrence",
+            "equation differentielle",
+            "differentielles",
             "regression",
             "probabilite",
             "complex",
@@ -1261,6 +1751,206 @@ def _extract_line_equation(text: str) -> str:
             if "x" in equation and "y" in equation:
                 return equation
     return ""
+
+
+def _asks_mayer_method(text: str) -> bool:
+    normalized = _normalize_lookup(text)
+    return any(
+        token in normalized
+        for token in (
+            "mayer",
+            "g1",
+            "g2",
+            "g_1",
+            "g_2",
+            "points moyens",
+            "moyennes partielles",
+            "groupes de meme effectif",
+        )
+    )
+
+
+def _extract_regression_table_xy(table_data: Any, prompt: str) -> tuple[list[float], list[float], int | None] | None:
+    if not isinstance(table_data, dict):
+        return None
+    rows = table_data.get("rows") or []
+    headers = [_normalize_lookup(header) for header in (table_data.get("headers") or [])]
+    if len(headers) < 2 or len(rows) < 3:
+        return None
+
+    numeric_rows: list[tuple[float, float]] = []
+    first_column_years = True
+    for row in rows:
+        if not isinstance(row, list) or len(row) < 2:
+            continue
+        try:
+            first = _to_float(str(row[0]))
+            second = _to_float(str(row[1]))
+        except Exception:
+            continue
+        numeric_rows.append((first, second))
+        if not (1900 <= first <= 2100 and float(first).is_integer()):
+            first_column_years = False
+
+    if len(numeric_rows) < 3:
+        return None
+
+    prompt_norm = _normalize_lookup(prompt)
+    header0 = headers[0] if headers else ""
+    uses_rank = (
+        "rang" in prompt_norm
+        or "i est le rang" in prompt_norm
+        or "rang de l annee" in prompt_norm
+        or "annee" in header0
+    ) and first_column_years
+
+    if uses_rank:
+        years = [int(pair[0]) for pair in numeric_rows]
+        x_values = [float(index) for index in range(1, len(numeric_rows) + 1)]
+        year_offset = years[0] - 1
+    else:
+        x_values = [pair[0] for pair in numeric_rows]
+        year_offset = None
+    y_values = [pair[1] for pair in numeric_rows]
+    return x_values, y_values, year_offset
+
+
+def _compute_regression_values(x_values: list[float], y_values: list[float]) -> dict[str, float] | None:
+    n = len(x_values)
+    if n < 3 or n != len(y_values):
+        return None
+    mean_x = sum(x_values) / n
+    mean_y = sum(y_values) / n
+    sxx = sum((x - mean_x) ** 2 for x in x_values)
+    syy = sum((y - mean_y) ** 2 for y in y_values)
+    if abs(sxx) < 1e-12 or abs(syy) < 1e-12:
+        return None
+    sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(x_values, y_values))
+    slope = sxy / sxx
+    intercept = mean_y - slope * mean_x
+    r_value = sxy / math.sqrt(sxx * syy)
+    return {"slope": slope, "intercept": intercept, "r": r_value}
+
+
+def _extract_claimed_correlation(text: str) -> float | None:
+    normalized = _latex_decimal_to_float_text(text)
+    patterns = [
+        r"\br\s*(?:=|≈|\s+vaut|\s+est)\s*([-+]?\d+(?:\.\d+)?)",
+        r"coefficient[^.\n]{0,80}?(?:=|vaut|est)\s*([-+]?\d+(?:\.\d+)?)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized, flags=re.IGNORECASE)
+        if match:
+            try:
+                value = float(match.group(1))
+            except ValueError:
+                continue
+            if -1.05 <= value <= 1.05:
+                return value
+    return None
+
+
+def _extract_regression_equation(text: str) -> tuple[float, float] | None:
+    normalized = _latex_decimal_to_float_text(text)
+    normalized = normalized.replace("\\times", "*").replace("×", "*").replace("·", "*")
+    normalized = re.sub(r"\\[a-zA-Z]+", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    patterns = [
+        r"\b[PpYy]\s*=\s*([-+]?\d+(?:\.\d+)?)\s*\*?\s*[IiXx]\s*([+-])\s*(\d+(?:\.\d+)?)",
+        r"\b[PpYy]\s*=\s*([-+]?\d+(?:\.\d+)?)\s*([IiXx])\s*([+-])\s*(\d+(?:\.\d+)?)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if not match:
+            continue
+        try:
+            slope = float(match.group(1))
+            sign = match.group(2) if len(match.groups()) == 3 else match.group(3)
+            intercept_token = match.group(3) if len(match.groups()) == 3 else match.group(4)
+            intercept = float(intercept_token)
+        except (ValueError, IndexError):
+            continue
+        if sign == "-":
+            intercept = -intercept
+        return slope, intercept
+    return None
+
+
+def _extract_years_asked_for_estimation(prompt: str) -> list[int]:
+    # Ignore introductory years used only to define the table period. Keep years appearing in the numbered tasks.
+    task_start_candidates = [
+        index for index in (prompt.find("1)"), prompt.find("1."), prompt.find("a)")) if index >= 0
+    ]
+    task_text = prompt[min(task_start_candidates) :] if task_start_candidates else prompt
+    normalized_task = _normalize_lookup(task_text)
+    years: list[int] = []
+    for match in re.finditer(r"\b(20\d{2}|19\d{2})\b", task_text):
+        year = int(match.group(1))
+        window_start = max(0, match.start() - 90)
+        window_end = min(len(normalized_task), match.end() + 160)
+        window = normalized_task[window_start:window_end]
+        if any(token in window for token in ("estimer", "prevoir", "prediction", "besoin", "repondra", "population", "consomme")):
+            years.append(year)
+    return _deduplicate_preserving_order_int(years)
+
+
+def _extract_threshold_value(prompt: str) -> float | None:
+    normalized = _latex_decimal_to_float_text(prompt)
+    match = re.search(r"depass(?:era|er|e|ent)?[^0-9]{0,40}(\d+(?:\.\d+)?)", normalized, flags=re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _has_number_near_anchor(text: str, anchor: str, expected: float, tolerance: float) -> bool:
+    normalized = _latex_decimal_to_float_text(text)
+    found_anchor = False
+    for match in re.finditer(re.escape(anchor), normalized):
+        found_anchor = True
+        window = normalized[match.start() : match.end() + 220]
+        if _window_contains_number_close_to(window, expected, tolerance):
+            return True
+    if not found_anchor:
+        # Some concise expected answers omit the year label; accept any close predicted value.
+        return _window_contains_number_close_to(normalized, expected, tolerance)
+    return False
+
+
+def _window_contains_number_close_to(window: str, expected: float, tolerance: float) -> bool:
+    for token in re.findall(r"[-+]?\d+(?:\.\d+)?", window):
+        try:
+            value = float(token)
+        except ValueError:
+            continue
+        # Ignore years and small ranks when checking large production estimates.
+        if expected > 100 and 1900 <= value <= 2100:
+            continue
+        if abs(value - expected) <= tolerance:
+            return True
+    return False
+
+
+def _latex_decimal_to_float_text(text: str) -> str:
+    normalized = str(text or "")
+    normalized = normalized.replace("{,}", ".").replace(",", ".")
+    normalized = normalized.replace("\\(", " ").replace("\\)", " ")
+    normalized = normalized.replace("\\[", " ").replace("\\]", " ")
+    normalized = re.sub(r"[{}]", "", normalized)
+    return normalized
+
+
+def _deduplicate_preserving_order_int(values: list[int]) -> list[int]:
+    seen: set[int] = set()
+    result: list[int] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _has_total_mean_task(prompt: str) -> bool:
@@ -1382,22 +2072,30 @@ def _line_contains_point(equation: str, x_value: float, y_value: float) -> bool:
 
 def _extract_recurrence_definitions(prompt: str) -> dict[str, str]:
     definitions: dict[str, str] = {}
-    for key in ("a", "b", "u", "v"):
-        match = re.search(
-            rf"{key}_\{{?(?:n|k)\+1\}}?\s*=\s*(.+?)(?=\s+et\s+[abuv]_\{{?(?:n|k)\+1\}}?\s*=|[.;,\n]|$)",
-            prompt,
-            flags=re.IGNORECASE,
-        )
-        if match:
-            definitions[key] = match.group(1).strip()
+    cleaned_prompt = repair_math_text_locally(prompt).replace("\\left", "").replace("\\right", "")
+    pattern = re.compile(
+        r"([abuvABUV])_\{?(?:n|k)\+1\}?\s*=\s*(.+?)(?=\s+(?:et|,)\s*[abuvABUV]_\{?(?:n|k)\+1\}?\s*=|[.;\n]|$)",
+        flags=re.IGNORECASE,
+    )
+    for match in pattern.finditer(cleaned_prompt):
+        expression = match.group(2).strip().replace("\\)", "").replace("\\]", "").strip()
+        definitions[match.group(1).lower()] = expression
     return definitions
 
 
 def _normalize_recurrence_expression(expression: str) -> str:
-    text = _normalize_for_sympy(expression)
+    text = repair_math_text_locally(expression)
+    text = text.replace("\\left", "").replace("\\right", "")
+    text = text.replace("\\dfrac", "\\frac").replace("\\tfrac", "\\frac")
+    text = text.replace("\\mathrm{e}", "e").replace("\\mathrm e", "e")
+    text = text.replace("\\ln", "ln")
+    text = _normalize_for_sympy(text)
+    text = re.sub(r"(?<=n)\(", "*(", text)
+    text = re.sub(r"(?<=\))(?=[A-Za-z])", "*", text)
     for key in ("a", "b", "u", "v"):
-        text = re.sub(rf"{key}_\{{?(?:n|k)\+1\}}?", f"{key}_next", text, flags=re.IGNORECASE)
-        text = re.sub(rf"{key}_\{{?(?:n|k)\}}?", f"{key}_n", text, flags=re.IGNORECASE)
+        text = re.sub(rf"[{key.upper()}{key}]_\{{?(?:n|k)\+1\}}?", f"{key}_next", text, flags=re.IGNORECASE)
+        text = re.sub(rf"[{key.upper()}{key}]_\{{?(?:n|k)\}}?", f"{key}_n", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<=[0-9A-Za-z_)])(?=(?:a_n|b_n|u_n|v_n)\b)", "*", text)
     return text
 
 
@@ -1507,12 +2205,44 @@ def _sympy_expression_is_nonnegative(expression: Any) -> bool:
 
 
 def _looks_like_recurrence_defined_sequences(prompt: str, solution: str = "") -> bool:
-    text = f"{prompt}\n{solution}"
+    text = repair_math_text_locally(f"{prompt}\n{solution}")
     normalized = _normalize_lookup(text)
     raw_lower = text.lower()
     has_step_definition = bool(re.search(r"[abuv]_\{?(?:n|k)\+1\}?\s*=", raw_lower))
     has_sequence_reference = bool(re.search(r"[abuv]_\{?(?:n|k)\}?", raw_lower))
     return has_step_definition and (has_sequence_reference or "suite" in normalized or "recurrence" in normalized)
+
+
+def _extract_sequence_value(solution: str, sequence_name: str, index_value: int) -> str:
+    match = re.search(
+        rf"[{sequence_name}{sequence_name.upper()}]_\{{?{index_value}\}}?\s*=\s*([^\n.;]+)",
+        repair_math_text_locally(solution),
+        flags=re.IGNORECASE,
+    )
+    return match.group(1).strip().replace("\\)", "").replace("\\]", "").strip() if match else ""
+
+
+def _extract_sequence_difference(solution: str, sequence_name: str) -> str:
+    match = re.search(
+        rf"[{sequence_name}{sequence_name.upper()}]_\{{?(?:n|k)\+1\}}?\s*-\s*[{sequence_name}{sequence_name.upper()}]_\{{?(?:n|k)\}}?\s*=\s*([^\n.;]+)",
+        repair_math_text_locally(solution),
+        flags=re.IGNORECASE,
+    )
+    return match.group(1).strip().replace("\\)", "").replace("\\]", "").strip() if match else ""
+
+
+def _extract_general_sequence_expression(solution: str, sequence_name: str) -> str:
+    match = re.search(
+        rf"(?<![-A-Za-z0-9_])[{sequence_name}{sequence_name.upper()}]_\{{?(?:n|k)\}}?\s*=\s*([^\n.;]+)",
+        repair_math_text_locally(solution),
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    candidate = match.group(1).strip().replace("\\)", "").replace("\\]", "").strip()
+    if re.search(rf"[{sequence_name}{sequence_name.upper()}]_\{{?(?:n|k)\+1\}}?", candidate, flags=re.IGNORECASE):
+        return ""
+    return candidate
 
 
 def _extract_derivative_claims(record: dict[str, Any]) -> list[str]:

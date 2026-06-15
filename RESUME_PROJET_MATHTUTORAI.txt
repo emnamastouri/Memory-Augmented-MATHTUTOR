@@ -1,0 +1,626 @@
+RESUME COMPLET DU PROJET MATHTUTORAI
+====================================
+
+Nom du projet
+-------------
+MathTutorAI / Memory-Augmented-MATHTUTOR
+
+Type de projet
+--------------
+Application web educative developpee avec Python et Streamlit.
+
+Objectif general
+----------------
+MathTutorAI est une plateforme de tutorat mathematique augmentee par l'intelligence artificielle.
+Elle cible les eleves du baccalaureat tunisien et permet de generer des exercices mathematiques,
+de les valider automatiquement, de discuter avec un tuteur IA, de suivre la progression des eleves
+et de permettre aux enseignants de gerer des groupes et des devoirs.
+
+Contribution principale du projet
+---------------------------------
+La contribution principale n'est pas la simple reutilisation du dataset.
+La contribution est une chaine complete :
+
+1. generation d'exercices par LLM via OpenRouter ;
+2. adaptation par memoire a partir d'exercices existants ;
+3. alignement avec le programme officiel ;
+4. validation par un juge LLM ;
+5. validation locale deterministe avec SymPy et validateurs specialises ;
+6. porte finale de presentation qui bloque tout exercice dangereux, incomplet ou mal forme ;
+7. persistance MongoDB pour les utilisateurs, exercices, conversations et progression.
+
+Technologies utilisees
+----------------------
+Frontend :
+- Streamlit
+- Python
+- CSS personnalise
+- Plotly pour les graphiques de suivi
+
+IA et generation :
+- OpenRouter
+- modele principal configure autour de Qwen / modeles OpenRouter compatibles
+- appels LLM structures en JSON
+- juge LLM pour l'alignement et la coherence
+- tuteur conversationnel IA
+
+Validation mathematique :
+- SymPy
+- validateurs deterministes locaux
+- verification de format LaTeX
+- verification finale avant affichage
+
+Base de donnees :
+- MongoDB local
+- URI par defaut : mongodb://localhost:27017
+- base par defaut : mathtutorai
+
+Memoire et donnees :
+- data/data-set.json
+- data/alignment_metadata_existing_couples_clean.json
+- logs d'audit de generation
+- memoire de resultats de generation
+
+Architecture generale
+---------------------
+Le projet suit une architecture Streamlit multipage.
+
+Arborescence principale :
+
+app.py
+README.md
+requirements.txt
+.streamlit/
+data/
+frontend/
+scripts/
+tests/
+
+Structure du frontend :
+
+frontend/
+  app.py
+  pages/
+    0_Welcome.py
+    1_Student_Dashboard.py
+    2_Exercise_Generator.py
+    3_Tutoring_Chat.py
+    4_Progress_Tracking.py
+    5_Teacher_Panel.py
+    6_Settings.py
+  components/
+    auth_forms.py
+    cards.py
+    chat_ui.py
+    exercise_widgets.py
+    navbar.py
+    progress_charts.py
+  styles/
+    custom.css
+  utils/
+    api_client.py
+    openrouter_client.py
+    exercise_agent.py
+    exercise_judge.py
+    exercise_solution_validator.py
+    exercise_presentation_gate.py
+    memory_adaptation.py
+    generation_retry_controller.py
+    math_format_guard.py
+    mongo_auth.py
+    mongo_learning.py
+    mongo_teacher.py
+    mongo_tutoring.py
+    mongo_notifications.py
+    validators/
+
+Pages de l'application
+----------------------
+1. Accueil
+   - presentation de MathTutorAI ;
+   - connexion ;
+   - creation de compte ;
+   - mot de passe oublie ;
+   - interface en francais ;
+   - apparence claire.
+
+2. Tableau de bord etudiant
+   - resume du profil ;
+   - progression ;
+   - themes forts et faibles ;
+   - historique d'apprentissage ;
+   - recommandations personnalisees.
+
+3. Generateur d'exercices
+   - choix du niveau Bac ;
+   - choix de la section ;
+   - choix du theme et du sous-theme ;
+   - choix du type d'exercice : QCM ou exercice probleme ;
+   - generation par OpenRouter ;
+   - validation avant affichage ;
+   - affichage de l'exercice seulement si toutes les validations passent ;
+   - acces au tutorat conversationnel autour de l'exercice.
+
+4. Tutorat conversationnel
+   - discussion avec un tuteur IA ;
+   - utilisation du modele OpenRouter configure ;
+   - modes : socratique, indice, explication d'erreur ;
+   - recuperation et poursuite des conversations ;
+   - association possible entre conversation et exercice.
+
+5. Suivi de progression
+   - exploitation des donnees MongoDB ;
+   - statistiques de travail ;
+   - exercices generes ;
+   - reponses donnees ;
+   - erreurs ;
+   - themes etudies ;
+   - temps d'apprentissage ;
+   - graphiques Plotly.
+
+6. Panneau enseignant
+   - accessible uniquement aux comptes enseignant ;
+   - creation de groupes ;
+   - affectation d'eleves par email ;
+   - verification de l'existence d'un eleve avant affectation ;
+   - generation d'exercice pour un groupe ;
+   - assignation d'exercices ;
+   - notifications aux eleves ;
+   - consultation des performances ;
+   - acces aux conversations de tutorat liees aux exercices ;
+   - acces enseignant aux solutions completes.
+
+7. Parametres
+   - modification des donnees personnelles ;
+   - gestion de session utilisateur ;
+   - pas d'acces utilisateur aux reglages internes dangereux du systeme.
+
+Gestion des roles
+-----------------
+Deux types de comptes existent :
+
+1. Etudiant
+   - peut acceder au tableau de bord ;
+   - peut generer des exercices ;
+   - peut discuter avec le tuteur ;
+   - peut consulter sa progression ;
+   - ne peut pas acceder au panneau enseignant.
+
+2. Enseignant
+   - peut acceder au panneau enseignant ;
+   - peut creer des groupes ;
+   - peut assigner des exercices ;
+   - peut consulter les statistiques des eleves ;
+   - peut voir les solutions completes.
+
+Creation de compte
+------------------
+Pour un etudiant :
+- nom ;
+- email ;
+- mot de passe ;
+- niveau : Bac ;
+- section.
+
+Pour un enseignant :
+- nom ;
+- email ;
+- mot de passe ;
+- pas de choix de niveau ;
+- pas de choix de section.
+
+MongoDB
+-------
+Connexion par defaut :
+mongodb://localhost:27017
+
+Base :
+mathtutorai
+
+Collections principales :
+- utilisateurs ;
+- learning_events ;
+- exercise_records ;
+- tutoring_threads ;
+- teacher_groups ;
+- group_assignments ;
+- user_notifications.
+
+Les donnees stockees incluent :
+- comptes utilisateurs ;
+- historiques d'exercices ;
+- reponses des etudiants ;
+- erreurs ;
+- conversations ;
+- exercices assignes ;
+- notifications ;
+- progression ;
+- temps d'etude ;
+- themes etudies ;
+- traces d'audit de generation.
+
+Pipeline de generation d'exercices
+----------------------------------
+Le pipeline suit ces etapes :
+
+1. L'utilisateur choisit section, theme, sous-theme et type d'exercice.
+2. Le systeme verifie que le couple section/theme/sous-theme existe dans le referentiel officiel.
+3. Le module de memoire recupere des cas similaires dans le dataset.
+4. Le prompt OpenRouter est construit avec :
+   - consignes strictes ;
+   - schema JSON ;
+   - exemples de memoire ;
+   - erreurs precedentes a eviter.
+5. OpenRouter genere un exercice au format JSON.
+6. Le JSON est extrait, repare si possible et valide contre un schema.
+7. Un juge LLM verifie l'alignement et la coherence pedagogique.
+8. Un validateur de solution verifie la coherence solution/reponse attendue.
+9. Les validateurs deterministes locaux verifient les maths selon le domaine.
+10. Le format LaTeX et l'affichage etudiant sont controles.
+11. La porte finale decide si l'exercice peut etre affiche.
+12. Si l'exercice est valide, il est stocke et presente.
+13. Sinon, il est rejete, journalise et une nouvelle tentative peut etre lancee.
+
+Schema structure d'un exercice
+------------------------------
+Un exercice genere doit contenir :
+
+- title ;
+- context ;
+- questions ;
+- instruction ;
+- solution ;
+- expected_answer ;
+- answer_kind ;
+- solution_steps ;
+- learning_objective ;
+- estimated_time ;
+- table_data ;
+- chart_data ;
+- graph_data ;
+- generation_metadata.
+
+Regles importantes :
+- le contexte seul est insuffisant ;
+- il faut au moins deux questions explicites ;
+- la solution doit repondre a toutes les questions ;
+- la reponse attendue doit correspondre a la solution ;
+- les donnees numeriques doivent etre coherentes ;
+- aucun exercice mal forme ne doit etre affiche.
+
+Memoire adaptative
+------------------
+Le systeme utilise une memoire a plusieurs niveaux :
+
+1. Memoire dataset
+   - recuperation d'exercices proches dans data/data-set.json ;
+   - filtrage par section, theme et sous-theme ;
+   - similarite textuelle ou TF-IDF selon les dependances disponibles.
+
+2. Memoire positive
+   - les generations LLM validees sont favorisees dans les prochaines tentatives.
+
+3. Memoire negative
+   - les echecs sont memorises pour eviter de repeter les memes erreurs :
+     - JSON invalide ;
+     - enonce sans question ;
+     - probabilites incoherentes ;
+     - LaTeX corrompu ;
+     - reponse attendue contradictoire ;
+     - exercice trop proche d'un cas source.
+
+4. Anti-copie
+   - le systeme bloque une generation trop similaire au cas source.
+
+OpenRouter
+----------
+Le projet utilise OpenRouter pour :
+- generer les exercices ;
+- juger certains exercices ;
+- valider certaines solutions ;
+- alimenter le tuteur conversationnel.
+
+Le client OpenRouter gere :
+- json_schema ;
+- json_object ;
+- prompt JSON simple si les modes structures echouent ;
+- diagnostic des erreurs ;
+- apercu brut des reponses ;
+- classification des erreurs :
+  - connection_error ;
+  - timeout ;
+  - http_error ;
+  - rate_limit ;
+  - auth_error ;
+  - unsupported_response_format ;
+  - empty_response ;
+  - invalid_json ;
+  - unknown_error.
+
+Scripts utiles :
+- scripts/check_openrouter_generation.py
+- scripts/check_memory_retrieval.py
+
+Validation mathematique
+-----------------------
+Le projet contient plusieurs validateurs locaux.
+
+Fichiers principaux :
+- frontend/utils/validators/local_math_validators.py
+- frontend/utils/validators/domain_router.py
+- frontend/utils/validators/probability_solver.py
+- frontend/utils/validators/bayes_solver.py
+- frontend/utils/validators/regression_solver.py
+- frontend/utils/validators/exponential_law_solver.py
+- frontend/utils/validators/complex_number_solver.py
+- frontend/utils/validators/linear_system_solver.py
+- frontend/utils/validators/graph_support_validator.py
+- frontend/utils/validators/question_coverage.py
+
+Types de validations :
+- derivees ;
+- limites ;
+- integrales et aires ;
+- suites numeriques ;
+- recurrence ;
+- probabilites finies ;
+- loi binomiale ;
+- Bayes et probabilites conditionnelles ;
+- regression et correlation ;
+- loi exponentielle ;
+- nombres complexes ;
+- matrices, determinants et systemes lineaires ;
+- graphes ;
+- support visuel ;
+- couverture question par question ;
+- coherence solution/reponse attendue ;
+- format LaTeX.
+
+Routeur de domaine
+------------------
+Le routeur evite d'appeler le mauvais validateur.
+
+Exemples :
+- nombres complexes -> validateur complex_numbers ;
+- loi exponentielle -> validateur exponential_law ;
+- graphes -> validateur graphs ;
+- matrices/systemes lineaires -> validateur linear_systems ;
+- regression/correlation -> validateur regression ;
+- Bayes -> validateur bayes ;
+- variables aleatoires -> validateur finite_probability ;
+- suites numeriques -> validateur sequences ;
+- equations differentielles -> validateur ode.
+
+Porte finale d'affichage
+------------------------
+Un exercice n'est affiche que si :
+
+- il vient d'une generation LLM reelle, sauf mode demo explicite ;
+- le juge l'approuve ;
+- l'alignement officiel est valide ;
+- la solution est validee ;
+- le validateur local ou domaine approuve ;
+- le format LaTeX est propre ;
+- les questions sont presentes ;
+- chaque question est couverte par la solution ;
+- les supports visuels requis existent ;
+- aucune incoherence mathematique locale n'est detectee ;
+- le dataset fallback n'est pas utilise silencieusement.
+
+Le systeme est donc volontairement fail-closed :
+si un doute important existe, l'exercice est bloque.
+
+Protection du format LaTeX
+--------------------------
+Le projet repare ou bloque les corruptions frequentes :
+
+- extbf{...} -> \textbf{...}
+- extit{...} -> \textit{...}
+- rac{...}{...} -> \frac{...}{...}
+- hickapprox -> \approx
+- extasciitilde -> \sim
+- egin{cases} -> \begin{cases}
+- end{cases} -> \end{cases}
+- commandes trop echappees comme \\\\ln ou \\\\frac.
+
+Les notations corrompues restantes sont bloquees avant affichage.
+
+Graphes et supports visuels
+---------------------------
+Si un exercice parle de :
+- graphe ;
+- sommets ;
+- aretes ;
+- chemin ;
+- matrice d'adjacence ;
+- chaine eulerienne ;
+- coloration ;
+- figure ;
+
+alors il doit contenir :
+- graph_data avec sommets et aretes ;
+ou
+- une description textuelle complete du graphe.
+
+Sinon l'exercice est bloque.
+
+Tutorat conversationnel
+-----------------------
+Le tuteur conversationnel permet :
+- discussion libre ;
+- discussion autour d'un exercice actif ;
+- reprise d'une ancienne conversation ;
+- association conversation/exercice ;
+- stockage MongoDB ;
+- modes socratique, indice et explication d'erreur.
+
+Historique
+----------
+L'historique utilisateur inclut :
+- exercices generes ;
+- exercices assignes ;
+- conversations ;
+- reponses ;
+- erreurs ;
+- notifications ;
+- progression ;
+- activites d'apprentissage.
+
+Enseignant
+----------
+Le panneau enseignant permet :
+- creation de groupes ;
+- ajout d'eleves par email ;
+- verification de l'existence de l'eleve ;
+- generation d'un exercice pour un groupe ;
+- assignation a tous les membres ;
+- notification automatique ;
+- consultation du travail des eleves ;
+- visualisation des solutions.
+
+Audit logs
+----------
+Les logs d'audit permettent de comprendre pourquoi un exercice est accepte ou bloque.
+
+Champs importants :
+- record_kind ;
+- generation_backend ;
+- is_true_llm_generation ;
+- llm_json_parse_status ;
+- openrouter_response_format_mode ;
+- retrieved_case_ids ;
+- source_case_instructions ;
+- judge_validation_flag ;
+- judge_alignment_status ;
+- solution_validation_flag ;
+- local_validation_flag ;
+- domain_router_key ;
+- domain_validator_name ;
+- domain_validator_flag ;
+- question_coverage_flag ;
+- student_facing_format_flag ;
+- final_display_decision ;
+- final_display_blocking_reasons ;
+- retry_strategy ;
+- failure_categories.
+
+Mode dataset demo
+-----------------
+Le dataset peut servir de mode demonstration ou offline.
+Il ne doit pas masquer un echec OpenRouter en mode normal.
+
+En mode normal :
+- si OpenRouter echoue ;
+- si la generation est invalide ;
+- si les validations echouent ;
+
+alors l'application affiche une raison d'echec au lieu de montrer silencieusement un exercice fallback.
+
+Tests
+-----
+Le projet contient :
+- tests/test_validation_pipeline.py
+- tests/run_validation_tests.py
+
+Les tests couvrent notamment :
+- extraction JSON ;
+- garde LaTeX ;
+- schema d'exercice ;
+- routeur de domaine ;
+- probabilites ;
+- Bayes ;
+- regression ;
+- loi exponentielle ;
+- nombres complexes ;
+- systemes lineaires ;
+- graphes ;
+- porte finale ;
+- memoire ;
+- retry controller.
+
+Commandes utiles
+----------------
+Installer les dependances :
+pip install -r requirements.txt
+
+Lancer l'application :
+streamlit run app.py
+
+Tester la validation :
+python tests/run_validation_tests.py
+
+Verifier la compilation :
+python -m compileall .
+
+Tester OpenRouter :
+python scripts/check_openrouter_generation.py
+
+Tester la recherche memoire :
+python scripts/check_memory_retrieval.py --section "Sciences experimentales" --topic "Statistiques" --subtopic "series a deux caracteres, regression et correlation"
+
+Configuration des secrets
+-------------------------
+Le fichier de secrets doit etre place dans :
+.streamlit/secrets.toml
+
+Il peut contenir :
+- cle OpenRouter ;
+- URL MongoDB ;
+- nom de la base ;
+- modeles OpenRouter ;
+- options de mode demo.
+
+Important :
+Les cles API ne doivent pas etre versionnees ni partagees dans ce resume.
+
+Fichier requirements.txt
+------------------------
+Dependances principales :
+- streamlit ;
+- plotly ;
+- sympy ;
+- pymongo ;
+- openai.
+
+Etat actuel du projet
+---------------------
+Le projet est un prototype academique avance.
+
+Il possede :
+- interface Streamlit complete ;
+- authentification ;
+- comptes etudiant/enseignant ;
+- generation LLM ;
+- memoire adaptative ;
+- validation avancee ;
+- MongoDB ;
+- tutorat conversationnel ;
+- suivi de progression ;
+- panneau enseignant ;
+- tests ;
+- scripts de diagnostic.
+
+Points sensibles a surveiller
+-----------------------------
+1. Les modeles OpenRouter peuvent parfois retourner un JSON invalide.
+2. Les exercices mathematiques doivent rester bloques si le doute est trop fort.
+3. La validation deterministe ne couvre pas encore tous les types possibles d'exercices.
+4. Les logs d'audit doivent etre conserves pour analyser les echecs.
+5. Les cles API doivent rester dans secrets.toml ou variables d'environnement.
+6. Le mode dataset doit rester un mode demonstration explicite.
+
+Valeur academique
+-----------------
+Le projet montre une architecture complete de generation educative securisee :
+
+- generation par LLM ;
+- adaptation par memoire ;
+- alignement curriculaire ;
+- verification multi-agent ;
+- validation symbolique et numerique ;
+- filtrage final avant affichage ;
+- persistance et analyse des traces d'apprentissage.
+
+Cette architecture est adaptee a un projet de fin d'etudes autour des systemes tutoriels intelligents,
+des LLMs, de la memoire pedagogique et de la validation automatique d'exercices mathematiques.
+

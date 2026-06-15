@@ -9,12 +9,13 @@ from typing import Any
 
 from frontend.utils.alignment_catalog import AlignmentRecord, get_alignment_record
 from frontend.utils.exercise_supports import describe_supports_for_judge
+from frontend.utils.math_format_guard import find_math_format_issues
 from frontend.utils.openrouter_client import (
-    extract_openrouter_text,
-    get_openrouter_client,
+    call_openrouter_chat,
+    extract_json_object,
     get_openrouter_settings,
     has_openrouter_config,
-    summarize_openrouter_response_issue,
+    parse_json_object_detailed,
 )
 
 JUDGE_SCHEMA = {
@@ -68,6 +69,7 @@ class ExerciseJudgeDecision:
     corrected_fields: dict[str, Any]
     model_name: str
     error_message: str = ""
+    diagnostics: dict[str, Any] | None = None
 
 
 def judge_generated_exercise(
@@ -116,6 +118,20 @@ def judge_generated_exercise(
             error_message="",
         )
 
+    format_issues = find_math_format_issues(exercise)
+    if format_issues:
+        return ExerciseJudgeDecision(
+            decision="rejected",
+            summary="L'exercice contient une notation mathematique corrompue avant jugement.",
+            alignment_status="aligned",
+            alignment_reason="Le couple est officiel, mais la sortie doit etre regeneree ou reparee avant affichage.",
+            issues=format_issues,
+            confidence=1.0,
+            corrected_fields={},
+            model_name="local-format-precheck",
+            error_message="",
+        )
+
     prompt = _build_judge_prompt(
         exercise=exercise,
         level=level,
@@ -127,7 +143,7 @@ def judge_generated_exercise(
     )
 
     try:
-        payload = _call_openrouter_judge(prompt, settings.judge_model)
+        payload, diagnostics = _call_openrouter_judge(prompt, settings.judge_model)
     except RuntimeError as exc:
         return ExerciseJudgeDecision(
             decision="error",
@@ -139,6 +155,7 @@ def judge_generated_exercise(
             corrected_fields={},
             model_name=settings.judge_model,
             error_message=str(exc),
+            diagnostics=getattr(exc, "diagnostics", None),
         )
 
     decision = str(payload.get("decision", "")).strip().lower()
@@ -178,6 +195,7 @@ def judge_generated_exercise(
         corrected_fields=corrected_fields,
         model_name=settings.judge_model,
         error_message="" if decision != "error" else "Le format de sortie du juge est invalide.",
+        diagnostics=diagnostics,
     )
 
 
@@ -254,9 +272,8 @@ def _build_judge_prompt(
     )
 
 
-def _call_openrouter_judge(prompt: str, model_name: str) -> dict[str, Any]:
+def _call_openrouter_judge(prompt: str, model_name: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Call the OpenRouter judge model and parse the resulting JSON object."""
-    client = get_openrouter_client()
     messages = [
         {
             "role": "system",
@@ -267,30 +284,46 @@ def _call_openrouter_judge(prompt: str, model_name: str) -> dict[str, Any]:
         },
         {"role": "user", "content": prompt},
     ]
-    request_kwargs = {
-        "model": model_name,
-        "messages": messages,
-        "temperature": 0.1,
-        "max_tokens": 1600,
+    result = call_openrouter_chat(
+        messages=messages,
+        model=model_name,
+        temperature=0,
+        top_p=0.1,
+        max_tokens=3000,
+        purpose="judge",
+        json_schema=_judge_response_schema(),
+    )
+    diagnostics = {
+        "judge_response_format_mode": result.response_format_mode,
+        "judge_raw_response_preview": result.raw_response_preview,
+        "judge_openrouter_error_type": result.error_type or "",
+        "judge_json_parse_error": "",
     }
-
-    try:
-        response = client.chat.completions.create(
-            response_format={"type": "json_object"},
-            **request_kwargs,
-        )
-    except Exception:
-        response = client.chat.completions.create(**request_kwargs)
-
-    content = extract_openrouter_text(response)
-    if not content:
-        raise RuntimeError(summarize_openrouter_response_issue(response))
-    payload = _extract_json_payload(content)
-    if not payload and content:
-        payload = _repair_payload_with_model(client=client, model_name=model_name, messages=messages, raw_content=content)
+    if not result.ok:
+        error = RuntimeError(result.error_message or result.error_type or "OpenRouter judge call failed.")
+        error.diagnostics = diagnostics  # type: ignore[attr-defined]
+        raise error
+    parse_result = parse_json_object_detailed(result.content)
+    diagnostics["judge_json_parse_error"] = parse_result.error or ""
+    payload = parse_result.data or {}
     if not payload:
-        raise RuntimeError("Le juge OpenRouter n'a pas renvoye un JSON exploitable.")
-    return payload
+        error = RuntimeError("Le juge OpenRouter n'a pas renvoye un JSON exploitable.")
+        error.diagnostics = diagnostics  # type: ignore[attr-defined]
+        raise error
+    return payload, diagnostics
+
+
+def _judge_response_schema() -> dict[str, Any]:
+    return {
+        "name": "mathtutorai_judge",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": True,
+            "required": ["decision", "summary", "alignment_status", "alignment_reason", "issues", "confidence"],
+            "properties": JUDGE_SCHEMA["properties"],
+        },
+    }
 
 
 def _repair_payload_with_model(
@@ -316,7 +349,8 @@ def _repair_payload_with_model(
         "model": model_name,
         "messages": repair_messages,
         "temperature": 0,
-        "max_tokens": 1600,
+        "top_p": 0.1,
+        "max_tokens": 3000,
     }
 
     try:
@@ -333,25 +367,8 @@ def _repair_payload_with_model(
 
 def _extract_json_payload(raw_content: str) -> dict[str, Any]:
     """Parse the first valid JSON object returned by the model."""
-    content = (raw_content or "").strip()
-    if not content:
-        return {}
-
-    if content.startswith("```"):
-        content = content.strip("`")
-        if content.lower().startswith("json"):
-            content = content[4:].strip()
-
-    parsed = _load_json_candidate(content)
-    if parsed:
-        return parsed
-
-    start = content.find("{")
-    end = content.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return {}
-
-    return _load_json_candidate(content[start : end + 1])
+    parsed = extract_json_object(raw_content)
+    return parsed or {}
 
 
 def _load_json_candidate(candidate: str) -> dict[str, Any]:

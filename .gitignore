@@ -1,5 +1,27 @@
+# Secrets / environment
 .streamlit/secrets.toml
+.env
+.env.*
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
 venv/
 .venv/
+env/
+
+# Runtime logs and private audit files
+data/generated_exercises_audit.jsonl
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -52,7 +52,8 @@ def _initialize_teacher_filters(groups: list[dict]) -> None:
     st.session_state.setdefault("teacher_assignment_section", default_section)
     st.session_state.setdefault("teacher_assignment_topic", "")
     st.session_state.setdefault("teacher_assignment_subtopic", "")
-    st.session_state.setdefault("teacher_assignment_type", "Exercice problÃ¨me")
+    st.session_state.setdefault("teacher_assignment_difficulty", DEFAULT_EXERCISE_DIFFICULTY)
+    st.session_state.setdefault("teacher_assignment_type", "Exercice problème")
     st.session_state.setdefault("teacher_assignment_note", "")
 
     if groups and st.session_state.teacher_assignment_group_id not in {group["group_id"] for group in groups}:
@@ -75,6 +76,7 @@ def _initialize_teacher_filters(groups: list[dict]) -> None:
     if st.session_state.teacher_assignment_subtopic not in subtopics:
         st.session_state.teacher_assignment_subtopic = subtopics[0] if subtopics else ""
 
+    st.session_state.teacher_assignment_difficulty = DEFAULT_EXERCISE_DIFFICULTY
     if st.session_state.teacher_assignment_type not in EXERCISE_TYPES:
         st.session_state.teacher_assignment_type = EXERCISE_TYPES[0]
 
@@ -88,7 +90,7 @@ def _generate_teacher_preview() -> None:
             section=st.session_state.teacher_assignment_section,
             topic=st.session_state.teacher_assignment_topic,
             subtopic=st.session_state.teacher_assignment_subtopic,
-            difficulty=DEFAULT_EXERCISE_DIFFICULTY,
+            difficulty=st.session_state.teacher_assignment_difficulty,
             exercise_type=st.session_state.teacher_assignment_type,
             audit_context={
                 "user_email": st.session_state.auth.get("email", ""),
@@ -119,6 +121,7 @@ def _teacher_preview_matches_filters(preview: dict | None) -> bool:
             preview.get("section") == st.session_state.teacher_assignment_section,
             preview.get("topic") == st.session_state.teacher_assignment_topic,
             preview.get("subtopic") == st.session_state.teacher_assignment_subtopic,
+            preview.get("difficulty") == st.session_state.teacher_assignment_difficulty,
             preview.get("exercise_type") == st.session_state.teacher_assignment_type,
         ]
     )
@@ -407,6 +410,7 @@ def _render_assignment_tab(data: dict[str, object]) -> None:
             st.session_state.teacher_assignment_section,
             st.session_state.teacher_assignment_topic,
         )
+        st.session_state.teacher_assignment_difficulty = DEFAULT_EXERCISE_DIFFICULTY
         bottom_row = st.columns(3, gap="medium")
         with bottom_row[0]:
             if st.session_state.teacher_assignment_subtopic not in subtopics:

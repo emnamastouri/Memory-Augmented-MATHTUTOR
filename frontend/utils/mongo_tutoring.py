@@ -296,6 +296,9 @@ def _sanitize_exercise_snapshot(exercise_context: dict[str, Any] | None) -> dict
         "id",
         "generation_trace_id",
         "title",
+        "context",
+        "questions",
+        "instruction",
         "prompt",
         "topic",
         "subtopic",
@@ -333,8 +336,13 @@ def _sanitize_exercise_snapshot(exercise_context: dict[str, Any] | None) -> dict
         "symbolic_checks_required",
         "corrected_fields_applied",
         "generation_backend",
+        "display_source_category",
+        "retry_strategy",
+        "failure_categories",
         "memory_adaptation_note",
         "source_case_summaries",
+        "source_case_instructions",
+        "generation_metadata",
         "generated_at",
     ]
     return {field: deepcopy(exercise_context.get(field)) for field in allowed_fields if field in exercise_context}

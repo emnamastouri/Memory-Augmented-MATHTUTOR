@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 import random
+import re
 from typing import Any
 import unicodedata
 from uuid import uuid4
@@ -17,9 +18,17 @@ except ImportError:  # pragma: no cover
 
 from frontend.utils.alignment_catalog import get_alignment_record
 from frontend.utils.constants import DEFAULT_STUDENT_PROFILE
+from frontend.utils.generation_retry_controller import GenerationRetryController, classify_failure_categories
 from frontend.utils.exercise_agent import assess_exercise_completeness, generate_exercise_with_memory_adaptation
 from frontend.utils.exercise_audit_log import persist_rejected_attempt_record
 from frontend.utils.exercise_judge import judge_generated_exercise
+from frontend.utils.exercise_memory import register_generation_outcome, retrieve_dataset_cases
+from frontend.utils.exercise_schema import has_explicit_questions, split_instruction_into_context_and_questions
+from frontend.utils.math_format_guard import (
+    find_math_format_issues,
+    repair_exercise_math_locally,
+    repair_exercise_math_with_openrouter,
+)
 from frontend.utils.exercise_presentation_gate import apply_final_display_decision
 from frontend.utils.exercise_solution_validator import validate_exercise_solution
 from frontend.utils.mongo_learning import get_user_dashboard_payload, get_user_progress_analytics
@@ -31,7 +40,15 @@ from frontend.utils.mongo_teacher import (
     get_teacher_supervision_view,
 )
 from frontend.utils.exercise_supports import enrich_exercise_supports
+from frontend.utils.openrouter_client import has_openrouter_config
 from frontend.utils.tutoring_agent import generate_tutor_reply
+from frontend.utils.validators.probability_solver import repair_probability_exercise_with_deterministic_solution
+from frontend.utils.validators.bayes_solver import repair_bayes_solution
+from frontend.utils.validators.complex_number_solver import repair_complex_number_solution
+from frontend.utils.validators.domain_router import get_domain_validator_key
+from frontend.utils.validators.exponential_law_solver import repair_exponential_law_solution
+from frontend.utils.validators.linear_system_solver import repair_linear_system_solution
+from frontend.utils.validators.regression_solver import repair_regression_solution
 
 
 @dataclass
@@ -71,6 +88,8 @@ class MathTutorApiClient:
         difficulty: str,
         exercise_type: str,
         audit_context: dict[str, str] | None = None,
+        demo_mode_requested: bool = False,
+        generation_strategy_override: str = "",
     ) -> dict[str, Any]:
         """Créer un exercice, le faire juger, puis le préparer pour l'élève."""
         rejected_attempts: list[dict[str, Any]] = []
@@ -79,7 +98,8 @@ class MathTutorApiClient:
         attempt_number = 1
         technical_retry_count = 0
         max_technical_retry_budget = 6
-        max_generation_attempts = 12
+        retry_controller = GenerationRetryController(max_attempts=8)
+        previous_bad_outputs: list[str] = []
         alignment_record = get_alignment_record(section, topic, subtopic)
         if alignment_record is None:
             blocked = self._build_blocked_generation_result(
@@ -106,7 +126,7 @@ class MathTutorApiClient:
                 alignment_reason="Aucune entree d'alignement officielle n'a ete trouvee pour ce couple.",
                 warning="Couple absent du referentiel officiel.",
             )
-            return apply_final_display_decision(blocked)
+            return self._finalize_generation_result(blocked)
 
         last_exercise = self._build_generation_shell(
             level=level,
@@ -123,7 +143,22 @@ class MathTutorApiClient:
         last_alignment_status = "aligned"
         last_alignment_reason = alignment_record.official_program_scope
 
-        while attempt_number <= max_generation_attempts:
+        if not has_openrouter_config() or demo_mode_requested:
+            demo_exercise = self._generate_trusted_dataset_demo_exercise(
+                level=level,
+                section=section,
+                topic=topic,
+                subtopic=subtopic,
+                difficulty=difficulty,
+                exercise_type=exercise_type,
+                generation_trace_id=generation_trace_id,
+                demo_mode_requested=demo_mode_requested,
+            )
+            if demo_exercise is not None:
+                return self._finalize_generation_result(demo_exercise)
+
+        while attempt_number <= retry_controller.max_attempts:
+            retry_strategy = generation_strategy_override if attempt_number == 1 and generation_strategy_override else retry_controller.next_strategy()
             exercise = self._generate_candidate_exercise(
                 level=level,
                 section=section,
@@ -132,13 +167,119 @@ class MathTutorApiClient:
                 difficulty=difficulty,
                 exercise_type=exercise_type,
                 quality_feedback=quality_feedback,
+                allow_dataset_demo=demo_mode_requested,
+                previous_errors=retry_controller.previous_errors(),
+                previous_bad_outputs=previous_bad_outputs,
+                generation_strategy=retry_strategy,
             )
             exercise["generation_trace_id"] = generation_trace_id
             exercise["generation_attempt_number"] = attempt_number
+            exercise["llm_generation_attempts_count"] = attempt_number
+            exercise["retry_strategy"] = retry_strategy
+            exercise["previous_errors_injected"] = retry_controller.previous_errors()
+            exercise["failure_categories"] = retry_controller.failure_categories()
             exercise.setdefault("generated_at", datetime.now().isoformat(timespec="seconds"))
             exercise["estimated_time"] = self._estimate_time_label(difficulty)
             exercise["fallback_revalidated"] = False
+
+            if exercise.get("generation_backend") == "dataset-fallback-blocked":
+                technical_retry_count = 0
+                openrouter_error_type = str(exercise.get("openrouter_error_type") or exercise.get("llm_json_parse_status") or "").strip()
+                openrouter_raw_preview = str(exercise.get("llm_raw_response_preview") or exercise.get("generation_warning") or "")
+                generation_issues = [
+                    item
+                    for item in [
+                        openrouter_error_type,
+                        str(exercise.get("openrouter_error_message") or exercise.get("generation_warning") or "").strip(),
+                        str(exercise.get("llm_json_parse_error") or "").strip(),
+                    ]
+                    if item
+                ]
+                if not generation_issues:
+                    generation_issues = ["Le modele n'a pas renvoye un JSON exploitable pour l'exercice."]
+                rejected_attempt = self._snapshot_rejected_attempt(
+                    exercise,
+                    "La generation LLM a echoue avant obtention d'un exercice exploitable.",
+                    generation_issues,
+                    str(exercise.get("openrouter_model_used") or "openrouter-llm"),
+                    attempt_number,
+                    alignment_status="aligned",
+                    alignment_reason=alignment_record.official_program_scope,
+                    flag="unknown",
+                    review_stage="llm_json_generation",
+                )
+                rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
+                self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    generation_issues + [rejected_attempt["summary"]],
+                    raw_output=openrouter_raw_preview,
+                    parsed_exercise=exercise,
+                )
+                if openrouter_raw_preview:
+                    previous_bad_outputs.append(openrouter_raw_preview)
+                last_summary = rejected_attempt["summary"]
+                last_issues = generation_issues
+                last_model_name = str(exercise.get("openrouter_model_used") or "openrouter-llm")
+                quality_feedback = self._build_judge_feedback(
+                    rejected_attempt["summary"],
+                    [
+                        *generation_issues,
+                        "Previous attempt failed before a displayable exercise was produced. Return ONLY valid JSON and do not repeat these mistakes.",
+                    ],
+                )
+                attempt_number += 1
+                continue
+
             exercise = enrich_exercise_supports(exercise)
+            exercise, local_math_repaired = repair_exercise_math_locally(exercise)
+            format_issues = find_math_format_issues(exercise)
+            if format_issues and has_openrouter_config():
+                exercise, remote_math_repaired, repair_issues = repair_exercise_math_with_openrouter(
+                    exercise,
+                    level=level,
+                    section=section,
+                    topic=topic,
+                    subtopic=subtopic,
+                    previous_issues=[*format_issues, *last_issues],
+                )
+                format_issues = find_math_format_issues(exercise) or repair_issues
+                if remote_math_repaired:
+                    exercise["math_format_repair_applied"] = True
+            elif local_math_repaired:
+                exercise["math_format_repair_applied"] = True
+
+            if format_issues:
+                technical_retry_count = 0
+                rejected_attempt = self._snapshot_rejected_attempt(
+                    exercise,
+                    "Notation mathematique corrompue avant passage chez le juge.",
+                    format_issues,
+                    "local-format-repair-guard",
+                    attempt_number,
+                    alignment_status="unknown",
+                    alignment_reason="Controle local de notation mathematique avant juge.",
+                    flag="wrong",
+                    review_stage="format_guard",
+                )
+                rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
+                self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    format_issues + [rejected_attempt["summary"]],
+                    parsed_exercise=exercise,
+                )
+                previous_bad_outputs.append(str(exercise.get("prompt", "")))
+                last_summary = rejected_attempt["summary"]
+                last_issues = list(format_issues)
+                last_model_name = "local-format-repair-guard"
+                quality_feedback = self._build_judge_feedback(
+                    rejected_attempt["summary"],
+                    [*format_issues, "Regenere avec du LaTeX valide: \\frac{...}{...}, \\int, \\infty, \\mathbb{R}."]
+                )
+                attempt_number += 1
+                continue
+
             last_exercise = exercise
             completeness_review = assess_exercise_completeness(exercise)
             exercise["prompt"] = completeness_review["clean_prompt"]
@@ -157,6 +298,12 @@ class MathTutorApiClient:
                 )
                 rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                 self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    completeness_review["issues"] + [completeness_review["summary"]],
+                    parsed_exercise=exercise,
+                )
+                previous_bad_outputs.append(str(exercise.get("prompt", "")))
                 last_summary = completeness_review["summary"]
                 last_issues = list(completeness_review["issues"])
                 last_model_name = "local-structural-guard"
@@ -164,6 +311,64 @@ class MathTutorApiClient:
                     completeness_review["summary"],
                     completeness_review["issues"],
                 )
+                attempt_number += 1
+                continue
+
+            domain_key = get_domain_validator_key(topic, subtopic, exercise.get("generation_metadata") or {})
+            exercise["domain_router_key"] = domain_key or ""
+            if domain_key in {"bayes", "finite_probability", "exponential_law"}:
+                repaired_probability_exercise = repair_probability_exercise_with_deterministic_solution(exercise)
+                if repaired_probability_exercise != exercise:
+                    exercise = repaired_probability_exercise
+                    exercise["probability_repair_applied"] = True
+                for repair_function, repair_flag in (
+                    (repair_bayes_solution, "bayes_repair_applied"),
+                    (repair_exponential_law_solution, "exponential_law_repair_applied"),
+                ):
+                    repaired_domain_exercise = repair_function(exercise)
+                    if repaired_domain_exercise != exercise:
+                        exercise = repaired_domain_exercise
+                        exercise[repair_flag] = True
+
+            if domain_key == "regression":
+                repaired_regression_exercise = repair_regression_solution(exercise)
+                if repaired_regression_exercise != exercise:
+                    exercise = repaired_regression_exercise
+                    exercise["regression_repair_applied"] = True
+            if domain_key == "complex_numbers":
+                exercise = repair_complex_number_solution(exercise)
+            if domain_key == "linear_systems":
+                exercise = repair_linear_system_solution(exercise)
+
+            if bool(exercise.get("too_similar_to_source_case")):
+                technical_retry_count = 0
+                similarity_issue = (
+                    f"too_similar_to_source_case: {exercise.get('too_similar_source_case_id', 'inconnu')} "
+                    f"(score={float(exercise.get('too_similar_source_case_score', 0.0)):.3f})"
+                )
+                rejected_attempt = self._snapshot_rejected_attempt(
+                    exercise,
+                    "L'enonce genere est trop proche d'un cas source recupere.",
+                    [similarity_issue],
+                    "local-memory-anti-copy",
+                    attempt_number,
+                    alignment_status="unknown",
+                    alignment_reason="Controle d'anti-copie sur les cas de memoire recuperes.",
+                    flag="wrong",
+                    review_stage="memory_anti_copy",
+                )
+                rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
+                self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    [similarity_issue, rejected_attempt["summary"]],
+                    parsed_exercise=exercise,
+                )
+                previous_bad_outputs.append(str(exercise.get("prompt", "")))
+                last_summary = rejected_attempt["summary"]
+                last_issues = [similarity_issue]
+                last_model_name = "local-memory-anti-copy"
+                quality_feedback = self._build_judge_feedback(rejected_attempt["summary"], [similarity_issue])
                 attempt_number += 1
                 continue
 
@@ -184,6 +389,12 @@ class MathTutorApiClient:
                 exercise["judge_issues"] = review.issues
                 exercise["judge_confidence"] = review.confidence
                 exercise["judge_model"] = review.model_name
+                if getattr(review, "diagnostics", None):
+                    diagnostics = review.diagnostics or {}
+                    exercise["judge_response_format_mode"] = diagnostics.get("judge_response_format_mode", "")
+                    exercise["judge_raw_response_preview"] = diagnostics.get("judge_raw_response_preview", "")
+                    exercise["judge_json_parse_error"] = diagnostics.get("judge_json_parse_error", "")
+                    exercise["judge_openrouter_error_type"] = diagnostics.get("judge_openrouter_error_type", "")
                 exercise["judge_regeneration_count"] = attempt_number - 1
                 exercise["judge_rejected_attempts"] = list(rejected_attempts)
                 exercise["judge_validation_flag"] = "approved"
@@ -203,12 +414,18 @@ class MathTutorApiClient:
                     review=review,
                 )
                 if secondary_validation["action"] == "return":
-                    return secondary_validation["exercise"]
+                    return self._finalize_generation_result(secondary_validation["exercise"])
                 if secondary_validation.get("technical_error"):
                     technical_retry_count += 1
                 rejected_attempt = secondary_validation["rejected_attempt"]
                 rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                 self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    list(rejected_attempt.get("issues", [])) + [str(rejected_attempt.get("summary", ""))],
+                    parsed_exercise=exercise,
+                )
+                previous_bad_outputs.append(str(exercise.get("prompt", "")))
                 last_summary = rejected_attempt.get("summary", secondary_validation.get("feedback", "Validation bloquee"))
                 last_issues = list(rejected_attempt.get("issues", []))
                 last_model_name = secondary_validation.get("model_name", review.model_name)
@@ -226,7 +443,7 @@ class MathTutorApiClient:
                         alignment_reason=review.alignment_reason,
                         warning=secondary_validation.get("warning", ""),
                     )
-                    return apply_final_display_decision(blocked)
+                    return self._finalize_generation_result(blocked)
                 quality_feedback = secondary_validation["feedback"]
                 attempt_number += 1
                 continue
@@ -248,6 +465,11 @@ class MathTutorApiClient:
                     )
                     rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                     self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                    retry_controller.register_failure(
+                        attempt_number,
+                        correction_issues + [rejected_attempt["summary"]],
+                        parsed_exercise=exercise,
+                    )
                     last_summary = rejected_attempt["summary"]
                     last_issues = correction_issues
                     last_model_name = review.model_name
@@ -272,6 +494,12 @@ class MathTutorApiClient:
                     )
                     rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                     self._persist_rejected_attempt_if_needed(rejected_attempt, corrected_exercise, audit_context)
+                    retry_controller.register_failure(
+                        attempt_number,
+                        list(rejected_attempt["issues"]) + [rejected_attempt["summary"]],
+                        parsed_exercise=corrected_exercise,
+                    )
+                    previous_bad_outputs.append(str(corrected_exercise.get("prompt", "")))
                     last_summary = rejected_attempt["summary"]
                     last_issues = list(rejected_attempt["issues"])
                     last_model_name = review.model_name
@@ -279,6 +507,43 @@ class MathTutorApiClient:
                     attempt_number += 1
                     continue
                 corrected_exercise = enrich_exercise_supports(corrected_exercise)
+                corrected_exercise, _ = repair_exercise_math_locally(corrected_exercise)
+                corrected_format_issues = find_math_format_issues(corrected_exercise)
+                if corrected_format_issues and has_openrouter_config():
+                    corrected_exercise, _, repair_issues = repair_exercise_math_with_openrouter(
+                        corrected_exercise,
+                        level=level,
+                        section=section,
+                        topic=topic,
+                        subtopic=subtopic,
+                        previous_issues=corrected_format_issues,
+                    )
+                    corrected_format_issues = find_math_format_issues(corrected_exercise) or repair_issues
+                if corrected_format_issues:
+                    rejected_attempt = self._snapshot_rejected_attempt(
+                        corrected_exercise,
+                        "La correction du juge contient encore une notation mathematique corrompue.",
+                        corrected_format_issues,
+                        review.model_name,
+                        attempt_number,
+                        alignment_status=review.alignment_status,
+                        alignment_reason=review.alignment_reason,
+                        flag="wrong",
+                        review_stage="judge_correction_format_guard",
+                    )
+                    rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
+                    self._persist_rejected_attempt_if_needed(rejected_attempt, corrected_exercise, audit_context)
+                    retry_controller.register_failure(
+                        attempt_number,
+                        corrected_format_issues + [rejected_attempt["summary"]],
+                        parsed_exercise=corrected_exercise,
+                    )
+                    last_summary = rejected_attempt["summary"]
+                    last_issues = list(corrected_format_issues)
+                    last_model_name = review.model_name
+                    quality_feedback = self._build_judge_feedback(rejected_attempt["summary"], corrected_format_issues)
+                    attempt_number += 1
+                    continue
                 corrected_completeness = assess_exercise_completeness(corrected_exercise)
                 corrected_exercise["prompt"] = corrected_completeness["clean_prompt"]
                 if not corrected_completeness["is_complete"]:
@@ -295,6 +560,12 @@ class MathTutorApiClient:
                     )
                     rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                     self._persist_rejected_attempt_if_needed(rejected_attempt, corrected_exercise, audit_context)
+                    retry_controller.register_failure(
+                        attempt_number,
+                        corrected_completeness["issues"] + [corrected_completeness["summary"]],
+                        parsed_exercise=corrected_exercise,
+                    )
+                    previous_bad_outputs.append(str(corrected_exercise.get("prompt", "")))
                     last_summary = corrected_completeness["summary"]
                     last_issues = list(corrected_completeness["issues"])
                     last_model_name = review.model_name
@@ -328,12 +599,18 @@ class MathTutorApiClient:
                     review=review,
                 )
                 if secondary_validation["action"] == "return":
-                    return secondary_validation["exercise"]
+                    return self._finalize_generation_result(secondary_validation["exercise"])
                 if secondary_validation.get("technical_error"):
                     technical_retry_count += 1
                 rejected_attempt = secondary_validation["rejected_attempt"]
                 rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                 self._persist_rejected_attempt_if_needed(rejected_attempt, corrected_exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    list(rejected_attempt.get("issues", [])) + [str(rejected_attempt.get("summary", ""))],
+                    parsed_exercise=corrected_exercise,
+                )
+                previous_bad_outputs.append(str(corrected_exercise.get("prompt", "")))
                 last_summary = rejected_attempt.get("summary", secondary_validation.get("feedback", "Validation bloquee"))
                 last_issues = list(rejected_attempt.get("issues", []))
                 last_model_name = secondary_validation.get("model_name", review.model_name)
@@ -351,7 +628,7 @@ class MathTutorApiClient:
                         alignment_reason=review.alignment_reason,
                         warning=secondary_validation.get("warning", ""),
                     )
-                    return apply_final_display_decision(blocked)
+                    return self._finalize_generation_result(blocked)
                 quality_feedback = secondary_validation["feedback"]
                 attempt_number += 1
                 continue
@@ -370,6 +647,12 @@ class MathTutorApiClient:
                 )
                 rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
                 self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+                retry_controller.register_failure(
+                    attempt_number,
+                    list(review.issues) + [review.summary],
+                    parsed_exercise=exercise,
+                )
+                previous_bad_outputs.append(str(exercise.get("prompt", "")))
                 last_summary = review.summary
                 last_issues = list(review.issues)
                 last_model_name = review.model_name
@@ -404,7 +687,7 @@ class MathTutorApiClient:
                         exercise.get("generation_warning", ""),
                         review.alignment_reason,
                     )
-                    return apply_final_display_decision(blocked)
+                    return self._finalize_generation_result(blocked)
                 quality_feedback = self._build_judge_feedback(review.summary, review.issues)
                 attempt_number += 1
                 continue
@@ -423,6 +706,11 @@ class MathTutorApiClient:
             )
             rejected_attempts = self._append_rejected_attempt(rejected_attempts, rejected_attempt)
             self._persist_rejected_attempt_if_needed(rejected_attempt, exercise, audit_context)
+            retry_controller.register_failure(
+                attempt_number,
+                [*review.issues, review.error_message or review.summary],
+                parsed_exercise=exercise,
+            )
             last_summary = review.summary
             last_issues = [*review.issues, review.error_message]
             last_model_name = review.model_name
@@ -442,7 +730,7 @@ class MathTutorApiClient:
                     alignment_reason=review.alignment_reason,
                     warning=review.error_message or review.summary,
                 )
-                return apply_final_display_decision(blocked)
+                return self._finalize_generation_result(blocked)
             quality_feedback = self._build_judge_feedback(
                 review.summary,
                 [*review.issues, review.error_message],
@@ -453,17 +741,177 @@ class MathTutorApiClient:
         blocked = self._build_blocked_generation_result(
             exercise=last_exercise,
             status="Generation bloquee",
-            summary="Aucun exercice fiable n'a ete obtenu avant la limite de tentatives.",
+            summary=(
+                "La generation LLM n'a pas produit un exercice valide apres plusieurs tentatives."
+                if has_openrouter_config() and not demo_mode_requested
+                else "Aucun exercice fiable n'a ete obtenu avant la limite de tentatives."
+            ),
             issues=last_issues or [last_summary],
             model_name=last_model_name,
-            attempt_number=max_generation_attempts,
+            attempt_number=retry_controller.max_attempts,
             rejected_attempts=rejected_attempts,
             flag="blocked_after_retries",
             alignment_status=last_alignment_status,
             alignment_reason=last_alignment_reason,
             warning=last_summary,
         )
-        return apply_final_display_decision(blocked)
+        return self._finalize_generation_result(blocked)
+
+    def _generate_trusted_dataset_demo_exercise(
+        self,
+        *,
+        level: str,
+        section: str,
+        topic: str,
+        subtopic: str,
+        difficulty: str,
+        exercise_type: str,
+        generation_trace_id: str,
+        demo_mode_requested: bool = False,
+    ) -> dict[str, Any] | None:
+        """Return a safe local demo exercise when no OpenRouter key is configured.
+
+        The exercise is not model-generated: it is copied from the curated dataset and
+        marked as a trusted dataset demo so the application remains demonstrable offline.
+        """
+        dataset_cases = retrieve_dataset_cases(
+            section=section,
+            topic=topic,
+            subtopic=subtopic,
+            profile=DEFAULT_STUDENT_PROFILE,
+            top_k=8,
+        )
+        if not dataset_cases:
+            return None
+
+        selected_case = next(
+            (case for case in dataset_cases if not self._statement_requires_missing_visual_support(case.instruction)),
+            dataset_cases[0],
+        )
+        if self._statement_requires_missing_visual_support(selected_case.instruction):
+            # Avoid showing dataset exercises that refer to a missing annex/figure in offline demo mode.
+            return None
+
+        generated_at = datetime.now().isoformat(timespec="seconds")
+        final_answer = str(selected_case.final_answer or "Voir solution détaillée.").strip()
+        solution_text = str(selected_case.solution or final_answer).strip()
+        steps = self._split_solution_into_steps(solution_text)
+        context, questions = split_instruction_into_context_and_questions(selected_case.instruction)
+        exercise = {
+            "id": f"DEMO-{uuid4().hex[:10].upper()}",
+            "section": section,
+            "topic": topic,
+            "subtopic": subtopic,
+            "level": level,
+            "generated_at": generated_at,
+            "difficulty": difficulty,
+            "exercise_type": exercise_type,
+            "title": f"Exercice démonstration — {subtopic}",
+            "context": context,
+            "questions": questions,
+            "instruction": selected_case.instruction,
+            "prompt": selected_case.instruction,
+            "hint": "Identifie d'abord la propriété centrale, puis traite les questions dans l'ordre.",
+            "accepted_answers": [final_answer] if final_answer else [],
+            "display_answer": final_answer,
+            "answer_kind": "text",
+            "solution_steps": steps,
+            "hidden_solution": solution_text,
+            "learning_objective": f"S'entraîner sur : {subtopic}.",
+            "tags": [section, topic, subtopic, difficulty, exercise_type, "demo-local"],
+            "estimated_time": self._estimate_time_label(difficulty),
+            "generation_backend": "trusted-dataset-demo",
+            "is_true_llm_generation": False,
+            "llm_json_parse_status": "invalid_json",
+            "llm_generation_attempts_count": 0,
+            "fallback_used": True,
+            "fallback_reason": "OpenRouter non configure ou mode demonstration explicitement demande.",
+            "display_source_category": "demo_dataset",
+            "demo_mode_used": demo_mode_requested or not has_openrouter_config(),
+            "generation_warning": (
+                "Mode démonstration local : OpenRouter n'est pas configuré, "
+                "l'exercice affiché provient directement du dataset validé."
+            ),
+            "verification_ready": True,
+            "verification_message": "Exercice issu du dataset de référence en mode démonstration local.",
+            "memory_adaptation_note": "Mode offline : réutilisation contrôlée d'un cas dataset sans génération LLM.",
+            "retrieved_case_ids": [case.case_id for case in dataset_cases],
+            "retrieved_memory_count": 0,
+            "source_case_summaries": [
+                {
+                    "case_id": case.case_id,
+                    "year": case.year,
+                    "topic": case.topic,
+                    "subtopic": case.subtopic,
+                }
+                for case in dataset_cases[:3]
+            ],
+            "judge_status": "Validé localement pour démonstration",
+            "judge_summary": "Exercice repris du dataset curé en l'absence de configuration OpenRouter.",
+            "judge_alignment_status": "aligned",
+            "judge_alignment_reason": "Couple présent dans le référentiel d'alignement et cas issu du dataset.",
+            "judge_issues": [],
+            "judge_confidence": 1.0,
+            "judge_model": "trusted-dataset-demo",
+            "judge_regeneration_count": 0,
+            "judge_rejected_attempts": [],
+            "judge_validation_flag": "approved",
+            "judge_blocked": False,
+            "judge_corrections_applied": False,
+            "corrected_fields_applied": False,
+            "solution_validation_status": "Validée localement",
+            "solution_validation_summary": "Solution originale du dataset utilisée comme référence.",
+            "solution_validation_issues": [],
+            "solution_validation_confidence": 1.0,
+            "solution_validation_model": "trusted-dataset-demo",
+            "solution_validation_flag": "approved",
+            "solution_validation_sympy_report": "Non requis en mode dataset demo.",
+            "local_validation_flag": "approved",
+            "local_validation_summary": "Cas dataset accepté pour démonstration locale.",
+            "local_validation_issues": [],
+            "local_validation_checks": {"formatting": {"status": "passed", "message": "Énoncé lisible."}},
+            "pedagogical_completeness_flag": "complete",
+            "pedagogical_completeness_summary": "Énoncé et solution disponibles dans le dataset.",
+            "pedagogical_completeness_issues": [],
+            "symbolic_checks_ran": False,
+            "symbolic_checks_passed": True,
+            "symbolic_checks_required": False,
+            "fallback_revalidated": True,
+            "support_ready": False,
+            "student_facing_format_flag": "approved",
+            "student_facing_format_issues": [],
+        }
+        if exercise_type == "QCM":
+            exercise["options"] = self._generate_options(final_answer, "text")
+        return exercise
+
+    def _statement_requires_missing_visual_support(self, statement: str) -> bool:
+        """Detect dataset statements that would need an absent figure/table/annex."""
+        normalized = self._normalize_lookup(statement)
+        markers = (
+            "figure de l annexe",
+            "annexe jointe",
+            "voir annexe",
+            "figure ci contre",
+            "figure ci dessous",
+            "courbe ci dessous",
+            "graphique ci dessous",
+            "tableau suivant",
+            "diagramme suivant",
+        )
+        return any(marker in normalized for marker in markers)
+
+    def _split_solution_into_steps(self, solution_text: str) -> list[str]:
+        """Extract compact teacher-facing solution steps from a full solution string."""
+        compact = " ".join(str(solution_text or "").split())
+        if not compact:
+            return ["Consulter la correction complète associée à l'exercice."]
+        raw_parts = re.split(r"(?:(?<=\.)\s+|\s+)(?=\d+\)|\d+\.|[a-d]\))", compact)
+        steps = [part.strip(" -;:") for part in raw_parts if part.strip(" -;:")]
+        if len(steps) <= 1:
+            sentences = re.split(r"(?<=[.!?])\s+", compact)
+            steps = [sentence.strip() for sentence in sentences if sentence.strip()]
+        return steps[:5] or [compact[:500]]
 
     def _run_secondary_solution_validation(
         self,
@@ -488,6 +936,7 @@ class MathTutorApiClient:
         )
         if solution_review.decision == "approved":
             reviewed_exercise.update(solution_review.normalized_fields)
+            reviewed_exercise["llm_generation_attempts_count"] = attempt_number
             reviewed_exercise["solution_validation_status"] = solution_review.validation_status_label
             reviewed_exercise["solution_validation_summary"] = solution_review.summary
             reviewed_exercise["solution_validation_issues"] = solution_review.issues
@@ -507,6 +956,7 @@ class MathTutorApiClient:
             reviewed_exercise["fallback_revalidated"] = reviewed_exercise.get("generation_backend") in {
                 "dataset-fallback",
                 "local-fallback",
+                "trusted-dataset-demo",
             }
             gated_exercise = apply_final_display_decision(reviewed_exercise)
             if gated_exercise["final_display_decision"] == "presented":
@@ -617,6 +1067,10 @@ class MathTutorApiClient:
         difficulty: str,
         exercise_type: str,
         quality_feedback: str = "",
+        allow_dataset_demo: bool = False,
+        previous_errors: list[str] | None = None,
+        previous_bad_outputs: list[str] | None = None,
+        generation_strategy: str = "normal_memory_adapted_generation",
     ) -> dict[str, Any]:
         """Generate one candidate exercise before review."""
         try:
@@ -628,8 +1082,53 @@ class MathTutorApiClient:
                 difficulty=difficulty,
                 exercise_type=exercise_type,
                 quality_feedback=quality_feedback,
+                allow_dataset_demo=allow_dataset_demo,
+                previous_errors=previous_errors or [],
+                previous_bad_outputs=previous_bad_outputs or [],
+                generation_strategy=generation_strategy,
             )
         except Exception as exc:
+            if has_openrouter_config() and not allow_dataset_demo:
+                diagnostics = dict(getattr(exc, "diagnostics", {}) or {})
+                parse_status = getattr(exc, "parse_status", "") or diagnostics.get("openrouter_error_type") or "invalid_json"
+                exercise = self._build_generation_shell(
+                    level=level,
+                    section=section,
+                    topic=topic,
+                    subtopic=subtopic,
+                    difficulty=difficulty,
+                    exercise_type=exercise_type,
+                    generation_trace_id=uuid4().hex,
+                )
+                exercise["generation_backend"] = "dataset-fallback-blocked"
+                exercise["generation_warning"] = str(exc)
+                exercise["fallback_revalidated"] = False
+                exercise["llm_json_parse_status"] = parse_status
+                exercise["llm_json_extraction_method"] = diagnostics.get("llm_json_extraction_method", "")
+                exercise["llm_json_parse_error"] = diagnostics.get("llm_json_parse_error", "")
+                exercise["llm_raw_response_preview"] = diagnostics.get("llm_raw_response_preview", getattr(exc, "raw_output", ""))
+                exercise["openrouter_http_status"] = diagnostics.get("openrouter_http_status")
+                exercise["openrouter_error_type"] = diagnostics.get("openrouter_error_type", parse_status)
+                exercise["openrouter_error_message"] = diagnostics.get("openrouter_error_message", str(exc))
+                exercise["openrouter_response_format_mode"] = diagnostics.get("openrouter_response_format_mode", "")
+                exercise["openrouter_model_used"] = diagnostics.get("openrouter_model_used", "")
+                exercise["openrouter_request_id"] = diagnostics.get("openrouter_request_id", "")
+                exercise["openrouter_provider"] = diagnostics.get("openrouter_provider", "")
+                exercise["openrouter_usage"] = diagnostics.get("openrouter_usage")
+                exercise["openrouter_call_attempts"] = diagnostics.get("openrouter_call_attempts", [])
+                exercise["prompt_char_count"] = diagnostics.get("prompt_char_count", 0)
+                exercise["prompt_token_estimate"] = diagnostics.get("prompt_token_estimate", 0)
+                exercise["number_of_memory_cases"] = diagnostics.get("number_of_memory_cases", 0)
+                exercise["retrieved_case_ids"] = list(diagnostics.get("retrieved_case_ids", []))
+                exercise["source_case_summaries"] = list(diagnostics.get("source_case_summaries", []))
+                exercise["source_case_instructions"] = list(diagnostics.get("source_case_instructions", []))
+                exercise["is_true_llm_generation"] = False
+                exercise["fallback_used"] = False
+                exercise["display_source_category"] = "blocked"
+                exercise["verification_ready"] = False
+                exercise["student_facing_format_flag"] = "wrong"
+                exercise["student_facing_format_issues"] = ["Generation LLM indisponible ou JSON inexploitable."]
+                return exercise
             exercise = self._resolve_exercise_generator(topic, subtopic)(
                 level, topic, subtopic, difficulty, exercise_type
             )
@@ -637,6 +1136,10 @@ class MathTutorApiClient:
             exercise["generation_backend"] = "local-fallback"
             exercise["generation_warning"] = str(exc)
             exercise["fallback_revalidated"] = False
+            exercise["llm_json_parse_status"] = getattr(exc, "parse_status", "invalid_json")
+            exercise["is_true_llm_generation"] = False
+            exercise["fallback_used"] = True
+            exercise["display_source_category"] = "blocked"
             exercise.setdefault("generated_at", datetime.now().isoformat(timespec="seconds"))
             exercise.setdefault(
                 "hidden_solution",
@@ -662,6 +1165,11 @@ class MathTutorApiClient:
     ) -> None:
         """Persist one refused attempt only when audit metadata is available."""
         if not audit_context:
+            self._register_generation_outcome_memory(
+                source=rejected_attempt,
+                parent=parent_exercise,
+                final_display_decision="blocked",
+            )
             return
         persist_rejected_attempt_record(
             rejected_attempt,
@@ -669,6 +1177,49 @@ class MathTutorApiClient:
             user_email=audit_context.get("user_email", "inconnu"),
             user_role=audit_context.get("user_role", "Inconnu"),
             user_display_name=audit_context.get("user_display_name", "Utilisateur inconnu"),
+        )
+        self._register_generation_outcome_memory(
+            source=rejected_attempt,
+            parent=parent_exercise,
+            final_display_decision="blocked",
+        )
+
+    def _register_generation_outcome_memory(
+        self,
+        *,
+        source: dict[str, Any],
+        parent: dict[str, Any] | None = None,
+        final_display_decision: str,
+    ) -> None:
+        """Feed positive/negative generation outcomes back into the memory layer."""
+        parent_exercise = parent or {}
+        prompt_signature = self._normalize_lookup(
+            "|".join(
+                [
+                    str(source.get("section") or parent_exercise.get("section") or ""),
+                    str(source.get("topic") or parent_exercise.get("topic") or ""),
+                    str(source.get("subtopic") or parent_exercise.get("subtopic") or ""),
+                    str(source.get("prompt") or parent_exercise.get("prompt") or ""),
+                ]
+            )
+        )[:320]
+        issues = [str(item) for item in (source.get("issues") or source.get("judge_issues") or []) if str(item).strip()]
+        summary = str(source.get("summary") or source.get("judge_summary") or "").strip()
+        failure_categories = classify_failure_categories([summary, *issues])
+        register_generation_outcome(
+            prompt_signature=prompt_signature,
+            section=str(source.get("section") or parent_exercise.get("section") or ""),
+            topic=str(source.get("topic") or parent_exercise.get("topic") or ""),
+            subtopic=str(source.get("subtopic") or parent_exercise.get("subtopic") or ""),
+            retrieved_case_ids=list(source.get("retrieved_case_ids") or parent_exercise.get("retrieved_case_ids") or []),
+            generation_backend=str(source.get("generation_backend") or parent_exercise.get("generation_backend") or ""),
+            is_true_llm_generation=bool(source.get("is_true_llm_generation", parent_exercise.get("is_true_llm_generation", False))),
+            validation_result=str(source.get("judge_validation_flag") or source.get("flag") or parent_exercise.get("judge_validation_flag") or ""),
+            judge_issues=issues,
+            local_issues=list(source.get("local_validation_issues") or parent_exercise.get("local_validation_issues") or []),
+            final_display_decision=final_display_decision,
+            student_facing_format_issues=list(source.get("student_facing_format_issues") or parent_exercise.get("student_facing_format_issues") or []),
+            failure_categories=failure_categories,
         )
 
     def _build_generation_shell(
@@ -692,6 +1243,9 @@ class MathTutorApiClient:
             "difficulty": difficulty,
             "exercise_type": exercise_type,
             "title": f"Exercice sur {subtopic}",
+            "context": "",
+            "questions": [],
+            "instruction": "",
             "prompt": "",
             "hint": "",
             "display_answer": "",
@@ -702,8 +1256,24 @@ class MathTutorApiClient:
             "generation_trace_id": generation_trace_id,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "generation_backend": "blocked-before-generation",
+            "is_true_llm_generation": False,
+            "llm_json_parse_status": "invalid_json",
+            "llm_generation_attempts_count": 0,
+            "fallback_used": False,
+            "fallback_reason": "",
+            "display_source_category": "blocked",
             "tags": [section, topic, subtopic, difficulty, exercise_type],
         }
+
+    def _finalize_generation_result(self, exercise: dict[str, Any]) -> dict[str, Any]:
+        """Apply the final display gate and store one positive/negative outcome memory trace."""
+        gated = apply_final_display_decision(exercise)
+        self._register_generation_outcome_memory(
+            source=gated,
+            parent=gated,
+            final_display_decision=str(gated.get("final_display_decision", "blocked")),
+        )
+        return gated
 
     def _contains_problematic_correction_language(self, corrected_exercise: dict[str, Any], review: Any) -> bool:
         """Block judge corrections that still describe the statement as faulty."""
@@ -783,6 +1353,36 @@ class MathTutorApiClient:
         blocked_exercise["judge_model"] = model_name
         blocked_exercise["judge_regeneration_count"] = attempt_number
         blocked_exercise["judge_rejected_attempts"] = list(rejected_attempts)
+        blocked_exercise["llm_generation_attempts_count"] = max(
+            int(blocked_exercise.get("llm_generation_attempts_count", 0) or 0),
+            int(attempt_number or 0),
+            len(rejected_attempts),
+        )
+        if rejected_attempts:
+            last_attempt = rejected_attempts[-1]
+            for key in (
+                "openrouter_http_status",
+                "openrouter_error_type",
+                "openrouter_error_message",
+                "openrouter_response_format_mode",
+                "openrouter_model_used",
+                "openrouter_request_id",
+                "openrouter_provider",
+                "openrouter_usage",
+                "openrouter_call_attempts",
+                "llm_raw_response_preview",
+                "llm_json_extraction_method",
+                "llm_json_parse_error",
+                "prompt_char_count",
+                "prompt_token_estimate",
+                "number_of_memory_cases",
+                "retrieved_case_ids",
+                "source_case_summaries",
+                "source_case_instructions",
+                "failure_categories",
+            ):
+                if key in last_attempt and last_attempt.get(key) not in (None, "", []):
+                    blocked_exercise[key] = last_attempt.get(key)
         blocked_exercise["judge_validation_flag"] = flag
         blocked_exercise["judge_blocked"] = True
         blocked_exercise["solution_validation_status"] = "Bloquee"
@@ -803,6 +1403,11 @@ class MathTutorApiClient:
         blocked_exercise["symbolic_checks_required"] = False
         blocked_exercise["corrected_fields_applied"] = bool(blocked_exercise.get("corrected_fields_applied", False))
         blocked_exercise["fallback_revalidated"] = False
+        blocked_exercise["is_true_llm_generation"] = blocked_exercise.get("generation_backend") in {
+            "openrouter-llm",
+            "openrouter-llm-repaired-json",
+        }
+        blocked_exercise["display_source_category"] = "blocked"
         blocked_exercise["generation_warning"] = self._merge_warning_messages(
             blocked_exercise.get("generation_warning", ""),
             warning,
@@ -917,6 +1522,36 @@ class MathTutorApiClient:
             "generated_at": exercise.get("generated_at", ""),
             "generation_backend": exercise.get("generation_backend", ""),
             "generation_trace_id": exercise.get("generation_trace_id", ""),
+            "retry_strategy": exercise.get("retry_strategy", ""),
+            "previous_errors_injected": list(exercise.get("previous_errors_injected", []) or []),
+            "failure_categories": list(exercise.get("failure_categories", []) or []),
+            "llm_generation_attempts_count": exercise.get("llm_generation_attempts_count", attempt_number),
+            "llm_json_parse_status": exercise.get("llm_json_parse_status", ""),
+            "llm_json_extraction_method": exercise.get("llm_json_extraction_method", ""),
+            "llm_json_parse_error": exercise.get("llm_json_parse_error", ""),
+            "llm_raw_response_preview": exercise.get("llm_raw_response_preview", ""),
+            "openrouter_http_status": exercise.get("openrouter_http_status"),
+            "openrouter_error_type": exercise.get("openrouter_error_type", ""),
+            "openrouter_error_message": exercise.get("openrouter_error_message", ""),
+            "openrouter_response_format_mode": exercise.get("openrouter_response_format_mode", ""),
+            "openrouter_model_used": exercise.get("openrouter_model_used", ""),
+            "openrouter_request_id": exercise.get("openrouter_request_id", ""),
+            "openrouter_provider": exercise.get("openrouter_provider", ""),
+            "openrouter_usage": exercise.get("openrouter_usage"),
+            "openrouter_call_attempts": list(exercise.get("openrouter_call_attempts", []) or []),
+            "prompt_char_count": exercise.get("prompt_char_count", 0),
+            "prompt_token_estimate": exercise.get("prompt_token_estimate", 0),
+            "number_of_memory_cases": exercise.get("number_of_memory_cases", 0),
+            "retrieved_case_ids": list(exercise.get("retrieved_case_ids", []) or []),
+            "source_case_summaries": list(exercise.get("source_case_summaries", []) or []),
+            "source_case_instructions": list(exercise.get("source_case_instructions", []) or []),
+            "domain_validator_name": exercise.get("domain_validator_name", ""),
+            "domain_validator_flag": exercise.get("domain_validator_flag", ""),
+            "domain_validator_issues": list(exercise.get("domain_validator_issues", []) or []),
+            "deterministic_repair_applied": exercise.get("deterministic_repair_applied", False),
+            "values_recomputed": exercise.get("values_recomputed", {}),
+            "final_memory_case_ids": list(exercise.get("final_memory_case_ids", []) or []),
+            "memory_filter_stage": exercise.get("memory_filter_stage", ""),
             "local_validation_flag": exercise.get("local_validation_flag", ""),
             "local_validation_summary": exercise.get("local_validation_summary", ""),
             "local_validation_issues": list(exercise.get("local_validation_issues", []) or []),
@@ -967,12 +1602,31 @@ class MathTutorApiClient:
             return (
                 "Your previous area computation had the wrong sign. If the integral is negative and the question asks for an area, flip the sign."
             )
+        if "pedagogical-completeness validator failed" in normalized_feedback and "regression" in normalized_feedback:
+            return (
+                "For statistics/regression, choose one clear method. For classical regression, ask for the correlation coefficient r, "
+                "the regression line and estimations; G, G1 and G2 are required only for Mayer exercises. "
+                "If you use Mayer, explicitly ask for G, G1, G2 and the Mayer line."
+            )
+        if "regression numeric validator failed" in normalized_feedback:
+            return (
+                "Your previous statistics table and solution were inconsistent. Do not change table values unless you recompute r, "
+                "the regression line, all predictions and the threshold year from the same table."
+            )
         return ""
 
     def _is_missing_alignment_reference(self, alignment_reason: str) -> bool:
         """Detect when the selected couple is absent from the official alignment file."""
         normalized_reason = self._normalize_lookup(alignment_reason)
         return "aucune entree d alignement officielle" in normalized_reason or "couple non couvert" in normalized_reason
+
+    def _looks_like_probability_topic(self, topic: str, subtopic: str) -> bool:
+        normalized = self._normalize_lookup(f"{topic} {subtopic}")
+        return any(marker in normalized for marker in ("probabil", "variable aleatoire", "bernoulli", "binomiale", "bayes", "conditionnement", "exponentielle"))
+
+    def _looks_like_statistics_topic(self, topic: str, subtopic: str) -> bool:
+        normalized = self._normalize_lookup(f"{topic} {subtopic}")
+        return any(marker in normalized for marker in ("statistique", "regression", "correlation", "ajustement"))
 
     def _merge_warning_messages(self, existing: str, incoming: str) -> str:
         """Merge warning strings without duplicating empty messages."""
@@ -1072,80 +1726,6 @@ class MathTutorApiClient:
             user_email=user_email,
             profile=profile,
         )
-
-    def get_teacher_panel_data(self) -> dict[str, Any]:
-        """Retourner les données de suivi enseignant."""
-        return {
-            "students": [
-                {
-                    "name": "Lina Haddad",
-                    "level": "2e année secondaire",
-                    "mastery": 78,
-                    "last_active": "Il y a 14 min",
-                    "risk": "Modéré",
-                    "focus": "Intégrales",
-                },
-                {
-                    "name": "Adam Ben Salah",
-                    "level": "1re année secondaire",
-                    "mastery": 83,
-                    "last_active": "Il y a 1 heure",
-                    "risk": "Faible",
-                    "focus": "Équations du second degré",
-                },
-                {
-                    "name": "Meriem Trabelsi",
-                    "level": "3e année secondaire",
-                    "mastery": 69,
-                    "last_active": "Hier",
-                    "risk": "Élevé",
-                    "focus": "Distributions",
-                },
-            ],
-            "curriculum": [
-                {
-                    "module": "Fondamentaux d'algèbre",
-                    "coverage": 92,
-                    "students_completed": 24,
-                    "next_checkpoint": "Transformations de fonctions",
-                },
-                {
-                    "module": "Concepts de calcul",
-                    "coverage": 64,
-                    "students_completed": 17,
-                    "next_checkpoint": "Modèles d'accumulation intégrale",
-                },
-                {
-                    "module": "Statistiques et modélisation",
-                    "coverage": 71,
-                    "students_completed": 19,
-                    "next_checkpoint": "Distributions discrètes",
-                },
-            ],
-            "exercise_history": [
-                {
-                    "student": "Lina Haddad",
-                    "exercise": "Estimation d'aire par intégrale",
-                    "topic": "Calcul",
-                    "result": "Incorrect puis corrigé",
-                    "date": "2026-05-07",
-                },
-                {
-                    "student": "Adam Ben Salah",
-                    "exercise": "Racines d'une équation quadratique",
-                    "topic": "Algèbre",
-                    "result": "Correct",
-                    "date": "2026-05-07",
-                },
-                {
-                    "student": "Meriem Trabelsi",
-                    "exercise": "Jeu de cartes et espérance",
-                    "topic": "Statistiques",
-                    "result": "Intervention nécessaire",
-                    "date": "2026-05-06",
-                },
-            ],
-        }
 
     def save_settings(self, settings_payload: dict[str, Any]) -> bool:
         """Placeholder de sauvegarde des paramètres."""
@@ -1729,37 +2309,49 @@ class MathTutorApiClient:
         return self._deduplicate_preserving_order([correct_answer, "0", "x", "À retravailler"])
 
     def _compare_answers(self, provided: str, accepted: list[str], kind: str) -> bool:
-        """Comparer la réponse fournie aux formes acceptées."""
+        """Comparer la réponse fournie aux formes acceptées avec normalisation robuste."""
+        if not accepted:
+            return False
+
         if kind == "set":
-            provided_parts = {
-                part.strip()
-                for part in provided.replace("ou", ",").replace("or", ",").split(",")
-                if part.strip()
-            }
+            provided_parts = self._normalize_answer_set(provided)
             for candidate in accepted:
-                accepted_parts = {
-                    part.strip()
-                    for part in candidate.replace("ou", ",").replace("or", ",").split(",")
-                    if part.strip()
-                }
-                if provided_parts == accepted_parts:
+                if provided_parts and provided_parts == self._normalize_answer_set(candidate):
                     return True
             return False
 
+        normalized_provided = self._normalize_answer_text(provided)
         if kind == "text":
-            normalized = provided.lower().replace(" ", "")
             return any(
-                answer.lower().replace(" ", "") in normalized
-                or normalized in answer.lower().replace(" ", "")
+                self._normalize_answer_text(answer) in normalized_provided
+                or normalized_provided in self._normalize_answer_text(answer)
                 for answer in accepted
+                if self._normalize_answer_text(answer)
             )
 
         for answer in accepted:
             if self._sympy_equivalent(provided, answer):
                 return True
-            if provided.strip().lower() == answer.strip().lower():
+            if normalized_provided == self._normalize_answer_text(answer):
                 return True
         return False
+
+    def _normalize_answer_set(self, value: str) -> set[str]:
+        """Normalize common set-answer variants such as 'x=1 ou x=2'."""
+        cleaned = self._normalize_answer_text(value)
+        cleaned = re.sub(r"\b(x|y|t|n)\s*=\s*", "", cleaned)
+        cleaned = cleaned.replace(" ou ", ",").replace(" or ", ",").replace(";", ",")
+        cleaned = cleaned.strip("{}[]() ")
+        return {part.strip() for part in cleaned.split(",") if part.strip()}
+
+    def _normalize_answer_text(self, value: str) -> str:
+        """Normalize accents, math wrappers, whitespace and punctuation for answer comparison."""
+        text = str(value or "").strip().lower()
+        text = text.replace("\\(", "").replace("\\)", "").replace("$", "")
+        text = text.replace("−", "-").replace("×", "*").replace("^", "**")
+        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
 
     def _sympy_equivalent(self, provided: str, expected: str) -> bool:
         """Comparer deux expressions avec simplification symbolique."""

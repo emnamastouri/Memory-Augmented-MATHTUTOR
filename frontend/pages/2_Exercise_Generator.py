@@ -32,6 +32,7 @@ from frontend.utils.mongo_learning import (
     record_hint_interaction,
     record_page_consultation,
 )
+from frontend.utils.openrouter_client import has_openrouter_config
 from frontend.utils.page_router import switch_to_page
 from frontend.utils.session_manager import (
     initialize_session_state,
@@ -66,7 +67,15 @@ def _generate_exercise() -> None:
                 "user_role": st.session_state.auth.get("role", "Inconnu"),
                 "user_display_name": st.session_state.auth.get("display_name", "Utilisateur inconnu"),
             },
+            demo_mode_requested=bool(st.session_state.get("exercise_demo_mode_requested", False)),
+            generation_strategy_override=(
+                "simple_exercise_generation"
+                if bool(st.session_state.get("exercise_simple_mode_requested", False))
+                else ""
+            ),
         )
+    st.session_state.exercise_demo_mode_requested = False
+    st.session_state.exercise_simple_mode_requested = False
 
     for flagged_attempt in exercise.get("judge_rejected_attempts", []):
         log_flagged_exercise(
@@ -132,7 +141,7 @@ def _maybe_restore_pending_assigned_exercise() -> None:
     st.session_state.generator_subtopic = exercise.get("subtopic", st.session_state.get("generator_subtopic", ""))
     st.session_state.generator_type = exercise.get(
         "exercise_type",
-        st.session_state.get("generator_type", "Exercice problÃ¨me"),
+        st.session_state.get("generator_type", "Exercice problème"),
     )
     set_current_exercise(exercise)
     record_assigned_exercise_opened(exercise, source="sidebar_notification")
@@ -257,11 +266,39 @@ def render_page() -> None:
         if current_exercise:
             if not exercise_deliverable:
                 _allowed, blocking_reasons = can_present_exercise(current_exercise)
+                source_label = (
+                    "Bloquee apres validation"
+                    if current_exercise.get("display_source_category") == "blocked"
+                    else "Mode demonstration dataset"
+                    if current_exercise.get("display_source_category") == "demo_dataset"
+                    else "Generation LLM validee"
+                )
+                st.caption("Source : " + source_label)
                 st.error(current_exercise.get("judge_summary", "Le juge a bloque cet exercice avant affichage a l'eleve."))
                 st.info("Aucun enonce n'a ete montre a l'etudiant pour cette tentative. Relancez une generation.")
                 if blocking_reasons:
-                    st.caption("Blocages detectes : " + " | ".join(blocking_reasons))
+                    st.caption("Top blocages : " + " | ".join(blocking_reasons[:3]))
+                if has_openrouter_config():
+                    st.warning("La generation LLM n'a pas produit un exercice valide apres plusieurs tentatives.")
+                    if current_exercise.get("generation_warning"):
+                        st.caption(current_exercise.get("generation_warning"))
+                    if st.button("Essayer une generation plus simple", key="activate_simple_generation_mode"):
+                        st.session_state.exercise_simple_mode_requested = True
+                        _generate_exercise()
+                    if st.button("Mode demonstration dataset", key="activate_dataset_demo_mode"):
+                        st.session_state.exercise_demo_mode_requested = True
+                        _generate_exercise()
             else:
+                source_label = (
+                    "Generation LLM validee"
+                    if current_exercise.get("display_source_category") == "llm_generated"
+                    else "Mode demonstration dataset"
+                )
+                st.caption("Source : " + source_label)
+                if current_exercise.get("generation_backend") == "trusted-dataset-demo":
+                    st.info(
+                        "Mode demonstration : exercice issu du dataset valide, non compte comme generation LLM."
+                    )
                 render_exercise_card(current_exercise)
                 render_exercise_supports(current_exercise)
                 st.text_area(
@@ -420,6 +457,46 @@ def render_page() -> None:
                     "Generation de secours utilisee : "
                     f"{current_exercise['generation_warning']}"
                 )
+            debug_needed = (
+                not exercise_deliverable
+                or bool(current_exercise.get("openrouter_error_type"))
+                or bool(current_exercise.get("llm_json_parse_error"))
+            )
+            if debug_needed:
+                with st.expander("Debug generation", expanded=not exercise_deliverable):
+                    st.caption("Diagnostics techniques sans cle API.")
+                    st.write(
+                        {
+                            "modele": current_exercise.get("openrouter_model_used", ""),
+                            "response_format": current_exercise.get("openrouter_response_format_mode", ""),
+                            "erreur": current_exercise.get("openrouter_error_type", ""),
+                            "http_status": current_exercise.get("openrouter_http_status", ""),
+                            "parse_error": current_exercise.get("llm_json_parse_error", ""),
+                            "extraction": current_exercise.get("llm_json_extraction_method", ""),
+                            "tentatives": current_exercise.get("llm_generation_attempts_count", 0),
+                            "strategie": current_exercise.get("retry_strategy", ""),
+                            "categories": current_exercise.get("failure_categories", []),
+                            "prompt_chars": current_exercise.get("prompt_char_count", 0),
+                            "cas_memoire": current_exercise.get("retrieved_case_ids", []),
+                            "domain_validator_name": current_exercise.get("domain_validator_name", ""),
+                            "domain_validator_flag": current_exercise.get("domain_validator_flag", ""),
+                            "domain_validator_issues": current_exercise.get("domain_validator_issues", []),
+                            "corrected_fields_applied": current_exercise.get("corrected_fields_applied", False),
+                            "values_recomputed": current_exercise.get("values_recomputed", {}),
+                            "memory_filter_stage": current_exercise.get("memory_filter_stage", ""),
+                            "memory_rejected_case_ids": current_exercise.get("memory_rejected_case_ids", []),
+                            "judge_response_format_mode": current_exercise.get("judge_response_format_mode", ""),
+                            "validator_response_format_mode": current_exercise.get("validator_response_format_mode", ""),
+                        }
+                    )
+                    raw_preview = str(current_exercise.get("llm_raw_response_preview", "") or "").strip()
+                    if raw_preview:
+                        st.code(raw_preview[:1000], language="text")
+                    source_cases = current_exercise.get("source_case_instructions", []) or []
+                    if source_cases:
+                        st.caption("Cas memoire injectes")
+                        for index, source_case in enumerate(source_cases[:3], start=1):
+                            st.write(f"{index}. {str(source_case)[:300]}")
         else:
             render_highlight_card(
                 "Pret a demarrer",

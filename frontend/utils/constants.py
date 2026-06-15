@@ -2,12 +2,39 @@
 
 from __future__ import annotations
 
+import os
+from typing import Any
+
+
+def _read_streamlit_secret(section: str, key: str) -> Any:
+    """Read one optional Streamlit secret without failing in CLI/test mode."""
+    try:
+        import streamlit as st
+
+        raw_section = st.secrets.get(section, {})
+        if isinstance(raw_section, dict):
+            return raw_section.get(key)
+        return getattr(raw_section, key, None)
+    except Exception:
+        return None
+
+
+def _runtime_setting(section: str, key: str, env_name: str, default: str) -> str:
+    """Resolve a setting from environment, then Streamlit secrets, then fallback."""
+    env_value = os.getenv(env_name)
+    if env_value:
+        return env_value.strip()
+    secret_value = _read_streamlit_secret(section, key)
+    if secret_value:
+        return str(secret_value).strip()
+    return default
+
 APP_NAME = "MathTutorAI"
 APP_ICON = "\U0001f9e0"
 APP_TAGLINE = "Tutorat mathematique augmente par la memoire"
 
-MONGO_URI = "mongodb://localhost:27017"
-MONGO_DB_NAME = "mathtutorai"
+MONGO_URI = _runtime_setting("mongo", "uri", "MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME = _runtime_setting("mongo", "db_name", "MONGO_DB_NAME", "mathtutorai")
 MONGO_USERS_COLLECTION = "utilisateurs"
 MONGO_LEARNING_EVENTS_COLLECTION = "learning_events"
 MONGO_EXERCISE_RECORDS_COLLECTION = "exercise_records"

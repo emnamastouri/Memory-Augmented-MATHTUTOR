@@ -31,9 +31,11 @@ def render_filter_summary(selection: dict) -> None:
 
 def render_exercise_card(exercise: dict) -> None:
     """Afficher un exercice généré avec ses métadonnées."""
-    tag_markup = "".join([f'<span class="tag-pill">{escape(tag)}</span>' for tag in exercise.get("tags", [])])
+    hidden_tags = {"Fondamental", "Intermédiaire", "Avancé", "Défi", "Intermediaire", "Avance", "Defi"}
+    visible_tags = [tag for tag in exercise.get("tags", []) if str(tag) not in hidden_tags]
+    tag_markup = "".join([f'<span class="tag-pill">{escape(tag)}</span>' for tag in visible_tags])
     options_markup = ""
-    prompt_text = _format_exercise_prompt(_clean_card_text(exercise.get("prompt", "")))
+    prompt_text = _format_exercise_prompt(_build_student_statement(exercise))
     learning_objective = _clean_card_text(exercise.get("learning_objective", ""))
     meta_label = escape(exercise["level"]) if exercise.get("level") else ""
     meta_markup = f'<div class="exercise-card__meta">{meta_label}</div>' if meta_label else ""
@@ -192,6 +194,16 @@ def _format_exercise_prompt(text: str) -> str:
     formatted = re.sub(r"(?<=\.)\s+(?=Pour\s)", "\n", formatted)
     formatted = re.sub(r"\n{2,}", "\n", formatted)
     return formatted.strip()
+
+
+def _build_student_statement(exercise: dict) -> str:
+    """Prefer the structured v7 context/questions statement when available."""
+    context = _clean_card_text(exercise.get("context", ""))
+    questions = [_clean_card_text(item) for item in (exercise.get("questions") or []) if str(item).strip()]
+    if questions:
+        numbered = "\n".join(f"{index}) {question}" for index, question in enumerate(questions, start=1))
+        return f"{context}\n{numbered}".strip()
+    return _clean_card_text(exercise.get("prompt", ""))
 
 
 def _truncate_internal_fragment(text: str) -> str:

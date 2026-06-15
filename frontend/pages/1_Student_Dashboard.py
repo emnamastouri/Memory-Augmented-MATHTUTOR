@@ -99,7 +99,6 @@ def render_page() -> None:
         render_section_header("Exercices recents", "Historique recent de pratique et de revision.", "📝")
         for item in dashboard["recent_exercises"]:
             with st.expander(f"{item['title']} · {item['topic']}", expanded=False):
-                st.markdown(f"**Difficulte :** {item.get('difficulty', 'Intermédiaire')}")
                 st.markdown(f"**Statut :** {item.get('status', item.get('score', 'En cours'))}")
                 st.caption(item.get("timestamp", item.get("time", "A l'instant")))
 
